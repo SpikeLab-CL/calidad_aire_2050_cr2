@@ -9,8 +9,6 @@ import datetime
 
 def main():
     
-
-
     st.sidebar.markdown('''# Explorador de calidad del aire :earth_africa:''',)
     st.sidebar.markdown('''##### Una herramienta para visualizar resultados adicionales del informe a la nacion sobre la calidad del aire.''')
     
@@ -30,7 +28,7 @@ def main():
         series_de_tiempo()
         
     elif app_mode==menu[2]:
-        texto("Mapas de concentración y emisión de MP<sub>2,5</sub>")
+        texto("Mapas de concentración y emisión de MP<sub>2,5</sub>", 30)
         mapas()
         
     width_pagina = st.sidebar.slider('seleccionamos un tamaño', 0, 2000, 1000)
@@ -65,7 +63,7 @@ Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresp
     elif vistas==opciones[2]:
         variables = ['emision_pm25', 'número de habitantes']
 
-    df = cargamos_datos_resumen()
+    df = cargamos_datos_resumen(resolucion)
     texto("Concentracion versus emisión de MP<sub>2,5</sub>.", nfont=20,)
     ploteamos_barras(df, resolucion, variables, width_figuras=width_figuras)
     
@@ -84,6 +82,15 @@ def series_de_tiempo():
     
     st.sidebar.subheader('Dominio de interés')
     resolucion = get_resolucion(key='vista_general')
+   
+    texto(''' 1. Serie completa''', 25)
+    hourly = st.checkbox('Resolución horaria', value=False)
+
+    df_serie_completa = cargamos_series_tiempo_completas(hourly=hourly, resolucion=resolucion)
+    _df_serie_completa = filtrar_serie_daily_por_resolucion(df_serie_completa, resolucion)
+    options = filtrar_espacial(_df_serie_completa,resolucion)
+    if options==[]:
+        st.sidebar.error('Lista vacía')
     show_concentraciones = st.sidebar.checkbox('Gráficos de concentraciones', value=True)
     show_emisiones = st.sidebar.checkbox('Gráficos de emisiones', value=False)
     
@@ -96,14 +103,13 @@ def series_de_tiempo():
     
     
     
-    texto(''' 1. Serie completa''', 25)
-
-    hourly = st.checkbox('Resolución horaria', value=False)
-    df = cargamos_series_tiempo_completas(hourly=hourly)
-
+   
+    
+    #_df = filtrar_usuario(_df,resolucion, espacio)
+    _df_serie_completa = filtrar_options(_df_serie_completa, options, resolucion)
     if show_concentraciones:
         texto(f"Concentración de MP<sub>2,5</sub>", nfont=20)
-        line_plot(df, y='concentracion_pm25',
+        line_plot(_df_serie_completa, y='concentracion_pm25',
                   resolucion=resolucion,
                   leyenda_h=leyenda_h,
                   hourly=hourly,
@@ -112,7 +118,7 @@ def series_de_tiempo():
         ''' '''
     if show_emisiones:
         texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
-        line_plot(df, y='emision_pm25',
+        line_plot(_df_serie_completa, y='emision_pm25',
                   resolucion=resolucion,
                   leyenda_h=leyenda_h,
                   hourly=hourly,
@@ -123,18 +129,20 @@ def series_de_tiempo():
     texto(''' 2. Ciclo diario''', 25)
     texto("El ciclo diario representa la evolución a lo largo de un dia de un parámetro (concentración o emisión). El valor de la variable en cada hora del ciclo corresponde al promedio de todas esas horas durante el periodo del 1 de Mayo al 31 de Agosto de los años 2015 al 2017. Ademas del ciclo diario promedio se ilustra tambien el área de una desviación estandar en torno al valor promedio (área achurada) y representa una medida de dispersión en torno a la media de la variable en cuestión.",)
 
-    df = cargamos_serie_24hrs() 
-    
+    df_diario = cargamos_serie_24hrs(resolucion=resolucion) 
+    _df_diario = filtrar_serie_daily_por_resolucion(df_diario, resolucion)
+    _df_diario = filtrar_options(_df_diario, options, resolucion)
+
     if show_concentraciones:
         texto(f"Concentración de MP<sub>2,5</sub>", nfont=20)
-        plot_daily_curves(df, resolucion, tipo='concentracion',
+        plot_daily_curves(_df_diario, resolucion, tipo='concentracion',
                           show_shade_fill=leyenda_sombreada,
                           leyenda_h=leyenda_h,
                           showlegend=True,
                           width_figuras=width_figuras)
     if show_emisiones:
         texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
-        plot_daily_curves(df, resolucion, tipo='emision',
+        plot_daily_curves(_df_diario, resolucion, tipo='emision',
                           show_shade_fill=leyenda_sombreada,
                           leyenda_h=leyenda_h,
                           showlegend=True,
@@ -144,17 +152,22 @@ def series_de_tiempo():
     texto(''' 3. Ciclo semanal''', 25)
     texto("El ciclo semanal representa la evolución a lo largo de una semana de un parámetro (concentración o emisión) con datos horarios o promedios diarios. El valor de la variable en cada hora/día del ciclo corresponde al promedio de todas esas horas/días durante el periodo del 1 de Mayo al 31 de Agosto de los años 2015 al 2017. Además del ciclo semanal promedio se ilustra también el área de una desviación estandar en torno al valor promedio (área achurada) y representan una medida de dispersión en torno a la media de la variable en cuestión.")
     
-    df = cargamos_serie_semanal()
+    df_semanal = cargamos_serie_semanal(resolucion=resolucion)
+    _df_semanal = filtrar_serie_daily_por_resolucion(df_semanal, resolucion, temporal = 'day')
+    _df_semanal = filtrar_options(_df_semanal, options, resolucion)
+
     if show_concentraciones:
         texto(f"Concentración de MP<sub>2,5</sub>", nfont=20)
-        plot_weekly_curves(df, resolucion=resolucion, tipo='concentracion',
+        plot_weekly_curves(_df_semanal, resolucion=resolucion, tipo='concentracion',
                            show_shade_fill=leyenda_sombreada,
                            leyenda_h=leyenda_h,
+                           showlegend=True,
                            width_figuras=width_figuras)
     if show_emisiones:
         texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
-        plot_weekly_curves(df, resolucion=resolucion, tipo='emision',
+        plot_weekly_curves(_df_semanal, resolucion=resolucion, tipo='emision',
                            show_shade_fill=leyenda_sombreada,
+                           showlegend=True,
                            leyenda_h=leyenda_h,
                            width_figuras=width_figuras)
   
@@ -166,25 +179,32 @@ def mapas():
     
     texto('''La figura inferior ilustra simultaneamente la concentración y emisión mensual/invernal de MP2,5 correspondiente al promedio del periodo 2015 al 2017. Mientras la concentracion se representa a través de un mapa de calor (colores) las emisiones se representan por varas verticales cuya altura es proporcional a las emisiones de dicha comuna.''')
 
-    width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
-    st.header('Seleccionamos fechas de inicio y de fin')
-    fecha_inicio = st.date_input("Fecha de inicio",datetime.date(2015, 5, 1))
-    fecha_fin = st.date_input("Fecha de fin",datetime.date(2015, 5, 7))
-    if fecha_inicio >= fecha_fin:
-        st.error('fecha de inicio es posterior a la fecha de fin')
-    else:
-        st.markdown(
-            body=generate_html(
-                text=f"Agregando desde {fecha_inicio} hasta {fecha_fin}",
-                color="black",
-                font_size="14px",
-            ),
-            unsafe_allow_html=True,
-        )
+    st.sidebar.subheader('Período a graficar')
+    mapa = ['Todo el período'] + [f"Promedio de {k}" for k in ['Mayo','Junio', 'Julio', 'Agosto']]
+    modo_mapa = st.sidebar.radio("Seleccionamos un período para promediar", mapa, index=0, key='seleccion_principal')
     
-        df = cargamos_raster(fecha_inicio, fecha_fin)
+    width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
 
-        plot_mapa(df, width_figuras=width_figuras)    
+    if modo_mapa == mapa[0]:
+        fecha_inicio = '2015-05-01'
+        fecha_fin = '2015-08-31'
+    elif modo_mapa == mapa[1]:
+        fecha_inicio = '2015-05-01'
+        fecha_fin = '2015-05-31'
+    elif modo_mapa == mapa[2]:
+        fecha_inicio = '2015-06-01'
+        fecha_fin = '2015-06-30'
+    elif modo_mapa == mapa[3]:
+        fecha_inicio = '2015-07-01'
+        fecha_fin = '2015-07-31'
+    elif modo_mapa == mapa[4]:
+        fecha_inicio = '2015-08-01'
+        fecha_fin = '2015-08-31'
+
+        
+    texto(f"Agregando desde {fecha_inicio} hasta {fecha_fin}",)
+    df_mapa = cargamos_raster(fecha_inicio, fecha_fin)
+    plot_mapa(df_mapa, width_figuras=width_figuras)    
 
 
 main()

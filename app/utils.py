@@ -28,6 +28,27 @@ COLOR_MAP = {"default": "#262730",
 
 #factor_escala_emisiones = 3600*4*10**6 AL FINAL ESCALÉ DESDE BQ
 
+def filtrar_espacial(df, resolucion):
+    col_a_mirar = columna_a_mirar(resolucion)
+    tipos = list(df[col_a_mirar].unique())
+    if col_a_mirar == 'region':
+        titulo = 'regiones'
+    else:
+        titulo = 'comunas'
+    var_inicial = [f'Todas'] + tipos
+    options = st.sidebar.multiselect(f'Filtramos {titulo}',
+                                     var_inicial,
+                                    default=['Todas'])
+    return options
+    
+def filtrar_options(df, options, resolucion):
+    col_a_mirar = columna_a_mirar(resolucion)
+    if options==['Todas']:
+        return df
+    else:
+        return df.query(f'{col_a_mirar} in {options}')
+
+
 # 3. MAPAS
 @st.cache
 def cargamos_raster(date_inicio = "2015-05-03", date_fin = "2015-05-04",):
@@ -103,30 +124,37 @@ def plot_mapa(df,width_figuras=1000):
 
 # 2. SERIES DE TIEMPO
 @st.cache
-def cargamos_serie_semanal():
-    query = '''
+def cargamos_serie_semanal(resolucion = 'Todas las regiones'):
+    if resolucion=='Todas las regiones':
+        var_espacio = 'region'
+        var_cruce = 'region'
+    else:
+        var_espacio = 'comuna, region'
+        var_cruce = 'comuna'
+    query = f'''
     WITH  base_comunal_concentracion as(
-        SELECT Time, comuna, region, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
+        SELECT date, {var_espacio}, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
         FROM CR2.concentraciones_PM25_w_geo
-        GROUP BY Time, comuna, region
+        GROUP BY date, {var_espacio}
     ),
     base_comunal_emision as(
-        SELECT Time, comuna, region, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
+        SELECT date, {var_espacio}, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
         FROM CR2.emisiones_PM25_w_geo
-        GROUP BY Time, comuna, region
+        GROUP BY date, {var_espacio}
     ),
     base_agrupada as(
         SELECT con.*, emi.emision_pm25
         FROM base_comunal_concentracion as con
         JOIN base_comunal_emision as emi
-            ON con.comuna=emi.comuna AND con.Time=emi.Time
-        WHERE con.region!="Zona sin demarcar"
+            ON con.{var_cruce}=emi.{var_cruce} AND con.date=emi.date
+        WHERE con.region!="Zona sin demarcar" AND con.region!="Región de Magallanes y Antártica Chilena"
     )
-    SELECT EXTRACT(DAYOFWEEK from Time) as day, comuna, region,
+    SELECT EXTRACT(DAYOFWEEK from date) as day, {var_espacio},
            AVG(emision_pm25) as avg_emisionpm25, STDDEV(emision_pm25) as stddev_emisionpm25, 
            AVG(concentracion_pm25) as avg_concentracionpm25, STDDEV(concentracion_pm25) as stddev_concentracionpm25
     FROM base_agrupada
-    GROUP BY day, comuna, region
+    GROUP BY day, {var_espacio}
+    ORDER BY {var_espacio}
     '''
     #
     df = pandas_gbq.read_gbq(query,
@@ -135,25 +163,25 @@ def cargamos_serie_semanal():
     return df
 
 
-def plot_weekly_curves(df : pd.DataFrame,
+def plot_weekly_curves(_df : pd.DataFrame,
                        resolucion = 'Todas las regiones',
                        tipo = 'emision', 
+                       showlegend=True,
                        show_shade_fill=True,
                        leyenda_h=True,
                        leyenda_arriba=True,
                        width_figuras=1000):
-    
-    _df, col_a_mirar = filtrar_serie_daily_por_resolucion(df, resolucion, temporal = 'day')
 
+    col_a_mirar = columna_a_mirar(resolucion)
     fig = go.Figure()
-    x = list(df.sort_values(by='day').day.unique())
+    x = list(_df.sort_values(by='day').day.unique())
     x_rev = x[::-1]
 
     y, y_upper, y_lower = {}, {}, {}
     k = 0
     if tipo == 'emision':
         columnas = ['avg_emisionpm25', 'stddev_emisionpm25']
-        yaxis_title = 'Emisión promedio [ton/hr]'
+        yaxis_title = 'Emisión promedio [ton/día]'
         descripcion = '''Evolución semanal promedio de emisión de MP<sub>2,5</sub> por región/comuna. La linea continua indica el valor promedio y el área achurada (correspondiente a una desviación estandar) representa una medida de la dispersión en torno a este promedio.'''
         
     elif tipo == 'concentracion':
@@ -180,7 +208,7 @@ def plot_weekly_curves(df : pd.DataFrame,
                                     fill='toself',
                                     fillcolor=f'{color[1]}',
                                     line_color=f'rgba(255,255,255,0)',
-                                    showlegend=False,
+                                    showlegend=showlegend,
                                     name=comuna,
                                     ))
 
@@ -206,30 +234,37 @@ def plot_weekly_curves(df : pd.DataFrame,
 
 
 @st.cache
-def cargamos_serie_24hrs():
-    query = '''
+def cargamos_serie_24hrs(resolucion='Todas las regiones'):
+    if resolucion=='Todas las regiones':
+        var_espacio = 'region'
+        var_cruce = 'region'
+    else:
+        var_espacio = 'comuna, region'
+        var_cruce = 'comuna'
+    query = f'''
     WITH  base_comunal_concentracion as(
-        SELECT Time, comuna, region, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
+        SELECT Time, {var_espacio}, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
         FROM CR2.concentraciones_PM25_w_geo
-        GROUP BY Time, comuna, region
+        GROUP BY Time, {var_espacio}
     ),
     base_comunal_emision as(
-        SELECT Time, comuna, region, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
+        SELECT Time, {var_espacio}, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
         FROM CR2.emisiones_PM25_w_geo
-        GROUP BY Time, comuna, region
+        GROUP BY Time, {var_espacio}
     ),
     base_agrupada as(
         SELECT con.*, emi.emision_pm25
         FROM base_comunal_concentracion as con
         JOIN base_comunal_emision as emi
-            ON con.comuna=emi.comuna AND con.Time=emi.Time
-        WHERE con.region!="Zona sin demarcar"
+            ON con.{var_cruce}=emi.{var_cruce} AND con.Time=emi.Time
+        WHERE con.region!="Zona sin demarcar" AND con.region!="Región de Magallanes y Antártica Chilena"
     )
-    SELECT EXTRACT(HOUR from Time) as hora, comuna, region,
+    SELECT EXTRACT(HOUR from Time) as hora, {var_espacio},
     AVG(emision_pm25) as avg_emisionpm25, STDDEV(emision_pm25) as stddev_emisionpm25,
     AVG(concentracion_pm25) as avg_concentracionpm25, STDDEV(concentracion_pm25) as stddev_concentracionpm25
     FROM base_agrupada
-    GROUP BY hora, comuna, region
+    GROUP BY hora, {var_espacio}
+    ORDER BY hora ASC, {var_espacio}
     '''
     
     df = pandas_gbq.read_gbq(query,
@@ -239,24 +274,23 @@ def cargamos_serie_24hrs():
 
 def filtrar_serie_daily_por_resolucion(df, resolucion, temporal = 'hora'):
     if resolucion == 'Todas las regiones':
-        _df = df.groupby(['region',temporal])[['avg_emisionpm25', 'avg_concentracionpm25',
-                                            'stddev_emisionpm25', 'stddev_concentracionpm25']].mean().reset_index().copy()
-        col_a_mirar = 'region'
-        
-    elif resolucion == 'Todas las comunas':
         _df = df.copy()
-        col_a_mirar = 'comuna'
-        
     else:
         _df = df.query('region==@resolucion')
-        col_a_mirar = 'comuna'
         
     _df = simplificar_nombre_region(_df)
-    return _df, col_a_mirar
+    return _df
+
+def columna_a_mirar(resolucion):
+    if resolucion == 'Todas las regiones':
+        col_a_mirar = 'region'        
+    else:
+        col_a_mirar = 'comuna'
+    return col_a_mirar
 
 
 
-def plot_daily_curves(df : pd.DataFrame,
+def plot_daily_curves(_df : pd.DataFrame,
                       resolucion = 'Todas las regiones',
                       tipo : str = 'emision',
                       show_shade_fill=True,
@@ -264,9 +298,7 @@ def plot_daily_curves(df : pd.DataFrame,
                       leyenda_h=True,
                       leyenda_arriba=True,
                       width_figuras=1000):
-
-    _df, col_a_mirar = filtrar_serie_daily_por_resolucion(df, resolucion)
-
+    col_a_mirar = columna_a_mirar(resolucion)
     fig = go.Figure()
     x = list(_df.hora.unique())
     x_rev = x[::-1]
@@ -281,7 +313,6 @@ def plot_daily_curves(df : pd.DataFrame,
         columnas = ['avg_concentracionpm25', 'stddev_concentracionpm25']
         yaxis_title = 'Concentración promedio de PM25 [μg/m³]'
         descripcion = '''Evolución diaria promedio de la concentración de MP<sub/>2,5</sub> por región/comuna. La linea continua indica el valor promedio y el area achurada (correspondiente a una desviación estandar) representa una medida de la dispersión en torno a este promedio.'''
-    
     for comuna in _df[col_a_mirar].unique():
         
         if col_a_mirar == 'comuna':
@@ -329,46 +360,36 @@ def plot_daily_curves(df : pd.DataFrame,
 
 
 @st.cache
-def cargamos_series_tiempo_completas(hourly=False):
-    if not hourly:
-        query = '''
-            WITH base_concentracion as(
-                SELECT comuna, region, date, AVG(PM25) as concentracion_pm25 
-                FROM CR2.concentraciones_PM25_w_geo
-                GROUP BY comuna, region, date
-            ),
-            base_emision as (
-                SELECT comuna, region, date, SUM(EMI_PM25) as emision_pm25 
-                FROM CR2.emisiones_PM25_w_geo
-                GROUP BY comuna, region, date
-            )
-            SELECT con.*, emi.emision_pm25
-            FROM
-            base_concentracion as con
-            JOIN
-            base_emision as emi
-                ON con.comuna=emi.comuna AND con.date=emi.date
-            WHERE con.region!="Zona sin demarcar"
-            '''
+def cargamos_series_tiempo_completas(hourly=False, resolucion='Todas las regiones'):
+    if not hourly: #if diaria
+        var_tiempo = 'date'
     else:
-        query = '''
+        var_tiempo = 'Time'
+        
+    if resolucion=='Todas las regiones':
+        var_espacio = 'region'
+        var_cruce = 'region'
+    else:
+        var_espacio = 'comuna, region'
+        var_cruce = 'comuna'
+    query = f'''
             WITH base_concentracion as(
-                SELECT comuna, region, Time, AVG(PM25) as concentracion_pm25 
+                SELECT {var_espacio}, {var_tiempo}, AVG(PM25) as concentracion_pm25 
                 FROM CR2.concentraciones_PM25_w_geo
-                GROUP BY comuna, region, Time
+                GROUP BY {var_espacio}, {var_tiempo}
             ),
             base_emision as (
-                SELECT comuna, region, Time, SUM(EMI_PM25) as emision_pm25 
+                SELECT {var_espacio}, {var_tiempo}, SUM(EMI_PM25) as emision_pm25 
                 FROM CR2.emisiones_PM25_w_geo
-                GROUP BY comuna, region, Time
+                GROUP BY {var_espacio}, {var_tiempo}
             )
             SELECT con.*, emi.emision_pm25
             FROM
             base_concentracion as con
             JOIN
             base_emision as emi
-                ON con.comuna=emi.comuna AND con.Time=emi.Time
-            WHERE con.region!="Zona sin demarcar"
+                ON con.{var_cruce}=emi.{var_cruce} AND con.{var_tiempo}=emi.{var_tiempo}
+            WHERE con.region!="Zona sin demarcar" AND con.region!="Región de Magallanes y Antártica Chilena"
             '''
 
     df = pandas_gbq.read_gbq(query,
@@ -376,28 +397,9 @@ def cargamos_series_tiempo_completas(hourly=False):
                              use_bqstorage_api=True)
     return df
 
-def filtrar_serie_tiempo_por_resolucion(df, resolucion, hourly=False):
-    if resolucion == 'Todas las regiones':
-        if not hourly:
-            tiempo = 'date'
-        else:
-            tiempo = 'Time'
-        _df = df.groupby(['region',tiempo])[['emision_pm25', 'concentracion_pm25']].mean().reset_index().copy()
-        col_a_mirar = 'region'
-        
-    elif resolucion == 'Todas las comunas':
-        _df = df.copy()
-        col_a_mirar = 'comuna'
-        
-    else:
-        _df = df.query('region==@resolucion')
-        col_a_mirar = 'comuna'
-        
-    _df = simplificar_nombre_region(_df)
-    return _df, col_a_mirar
 
 
-def line_plot(df, y='concentracion_pm25', 
+def line_plot(_df, y='concentracion_pm25', 
               resolucion='Todas las regiones', 
               leyenda_h=True, 
               hourly=False, 
@@ -405,7 +407,8 @@ def line_plot(df, y='concentracion_pm25',
               width_figuras=1000):
     
     
-    _df, col_a_mirar = filtrar_serie_tiempo_por_resolucion(df, resolucion, hourly=hourly)
+    #_df, col_a_mirar = filtrar_serie_tiempo_por_resolucion(df, resolucion, hourly=hourly)
+    col_a_mirar = columna_a_mirar(resolucion)
     if not hourly:
         sort_time = 'date'
     else:
@@ -456,8 +459,7 @@ def get_resolucion(key='resolucion'):
                       'Región de La Araucanía',
                       'Región de Los Ríos',
                       'Región de Los Lagos', 
-                      'Región de Aysén del Gral.Ibañez del Campo',
-                      'Región de Magallanes y Antártica Chilena',]
+                      'Región de Aysén del Gral.Ibañez del Campo']
                       #'Todas las comunas']
         
     resolucion = st.sidebar.selectbox('Seleccione la/las región/es de interés', lista_regiones, key=key)
@@ -471,8 +473,8 @@ def plot_dispersion(df, resolucion, width_figuras=1000, log_scale=True):
     
 
     _df, col_a_mirar = filtrar_por_resolucion(df, resolucion)
-    _df['log número de habitantes'] = np.log(_df['número de habitantes'])
-    _df['emision_pm25'] = np.round(_df['emision_pm25'],4)
+    _df['log número de habitantes'] = np.round(np.log(_df['número de habitantes']),2)
+    _df['emision_pm25'] = np.round(_df['emision_pm25'],2)
     _df['concentracion_pm25'] = np.round(_df['concentracion_pm25'],2)
     if log_scale:
         color = 'log número de habitantes'
@@ -490,7 +492,7 @@ def plot_dispersion(df, resolucion, width_figuras=1000, log_scale=True):
     
     
     fig.update_layout(height=500, width=width_figuras,
-                     xaxis_title='Emisión [ton/hr]',
+                     xaxis_title='Emisión [ton/día]',
                      yaxis_title='Concentración [μg/m³]',
                      template=TEMPLATE)
     set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
@@ -502,12 +504,13 @@ def plot_dispersion(df, resolucion, width_figuras=1000, log_scale=True):
 def ploteamos_barras(df, resolucion, variables=['concentracion_pm25','emision_pm25'], width_figuras=1000):
     
     _df, col_a_mirar = filtrar_por_resolucion(df, resolucion)
-    
+    _df['concentracion_pm25'] = np.round(_df['concentracion_pm25'],1)
+    _df['emision_pm25'] = np.round(_df['emision_pm25'],2)
     var1 = variables[0]
     var2 = variables[1]
     _df.sort_values(by=var1, ascending=False, inplace=True)
     ylabels = {'concentracion_pm25':'Concentración [μg/m³]',
-              'emision_pm25':'Emisión [ton/hr]',
+              'emision_pm25':'Emisión [ton/día]',
               'número de habitantes':'número de habitantes'}
     
     colores_barras = {'concentracion_pm25':'rgb(250, 50, 50)',
@@ -554,8 +557,7 @@ def simplificar_nombre_region(df):
     
 def filtrar_por_resolucion(df, resolucion, sort=True):
     if resolucion == 'Todas las regiones':
-        _df = df.groupby('region')[['emision_pm25', 'concentracion_pm25','número de habitantes']]\
-                .agg({'emision_pm25':'mean', 'concentracion_pm25':'mean','número de habitantes':'sum'}).reset_index().copy()
+        _df = df.copy()
         col_a_mirar = 'region'
         
     elif resolucion == 'Todas las comunas':
@@ -572,39 +574,80 @@ def filtrar_por_resolucion(df, resolucion, sort=True):
     return _df, col_a_mirar
 
 @st.cache
-def cargamos_datos_resumen():
-    query = '''
-    WITH  base_comunal_concentracion as(
-        SELECT Time, comuna, region, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
-        FROM CR2.concentraciones_PM25_w_geo
-        GROUP BY Time, comuna, region
-    ),
-    base_comunal_emision as(
-        SELECT Time, comuna, region, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
-        FROM CR2.emisiones_PM25_w_geo
-        GROUP BY Time, comuna, region
-    ),
-    base_agrupada as(
-        SELECT con.*, emi.emision_pm25,
-        FROM base_comunal_concentracion as con
-        JOIN base_comunal_emision as emi
-            ON con.comuna=emi.comuna AND con.Time=emi.Time
-        WHERE con.region!="Zona sin demarcar"
-    ),
-    base_agregada as(
-    SELECT comuna, region, AVG(emision_pm25) as emision_pm25, AVG(concentracion_pm25) as concentracion_pm25,
-    FROM base_agrupada
-    GROUP BY comuna, region
-    ),
-    base_agregada_habitantes as(
-    SELECT pm25.*, habitantes.* EXCEPT(comuna, region, cod_comuna)
-    FROM base_agregada as pm25
-    JOIN CR2.habitantes_por_comuna as habitantes
-        ON pm25.comuna=habitantes.comuna
-    )
-    SELECT * FROM base_agregada_habitantes
-    
-    '''
+def cargamos_datos_resumen(resolucion):
+    if resolucion=='Todas las regiones':
+        var_espacio = 'region'
+        var_cruce = 'region'
+    else:
+        var_espacio = 'comuna, region'
+        var_cruce = 'comuna'
+
+    query = f'''
+        WITH  base_regional_concentracion as(
+            SELECT date, {var_espacio}, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
+            FROM CR2.concentraciones_PM25_w_geo
+            GROUP BY date, {var_espacio}
+        ),
+        base_regional_emision as(
+            SELECT date, {var_espacio}, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
+            FROM CR2.emisiones_PM25_w_geo
+            GROUP BY date, {var_espacio}
+        ),
+        base_agrupada as(
+            SELECT con.*, emi.emision_pm25,
+            FROM base_regional_concentracion as con
+            JOIN base_regional_emision as emi
+                ON con.{var_cruce}=emi.{var_cruce} AND con.date=emi.date
+            WHERE con.region!="Zona sin demarcar" AND con.region!="Región de Magallanes y Antártica Chilena"
+        ),
+        base_agregada_pm25 as(
+        SELECT {var_espacio}, AVG(emision_pm25) as emision_pm25, AVG(concentracion_pm25) as concentracion_pm25,
+        FROM base_agrupada
+        GROUP BY {var_espacio}
+        ),
+        base_agrupada_habitantes as(
+        SELECT {var_espacio}, SUM(personas) as personas
+        FROM CR2.habitantes_por_comuna
+        GROUP BY {var_espacio}
+        ),
+        base_agregada as(
+        SELECT pm25.*, habitantes.* EXCEPT({var_espacio})
+        FROM base_agregada_pm25 as pm25
+        JOIN base_agrupada_habitantes as habitantes
+            ON pm25.{var_cruce}=habitantes.{var_cruce}
+        )
+        SELECT * FROM base_agregada'''
+#     else:
+#         query = '''
+#         WITH  base_comunal_concentracion as(
+#             SELECT date, comuna, region, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
+#             FROM CR2.concentraciones_PM25_w_geo
+#             GROUP BY date, comuna, region
+#         ),
+#         base_comunal_emision as(
+#             SELECT date, comuna, region, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
+#             FROM CR2.emisiones_PM25_w_geo
+#             GROUP BY date, comuna, region
+#         ),
+#         base_agrupada as(
+#             SELECT con.*, emi.emision_pm25,
+#             FROM base_comunal_concentracion as con
+#             JOIN base_comunal_emision as emi
+#                 ON con.comuna=emi.comuna AND con.date=emi.date
+#             WHERE con.region!="Zona sin demarcar AND con.region!="Región de Magallanes y Antártica Chilena"
+#         ),
+#         base_agregada as(
+#         SELECT comuna, region, AVG(emision_pm25) as emision_pm25, AVG(concentracion_pm25) as concentracion_pm25,
+#         FROM base_agrupada
+#         GROUP BY comuna, region
+#         ),
+#         base_agregada_habitantes as(
+#         SELECT pm25.*, habitantes.* EXCEPT(comuna, region, cod_comuna)
+#         FROM base_agregada as pm25
+#         JOIN CR2.habitantes_por_comuna as habitantes
+#             ON pm25.comuna=habitantes.comuna
+#         )
+#         SELECT * FROM base_agregada_habitantes'''
 #
     df = pandas_gbq.read_gbq(query,
                              project_id='spike-sandbox',
