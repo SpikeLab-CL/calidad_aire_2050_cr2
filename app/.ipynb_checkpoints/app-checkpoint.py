@@ -53,20 +53,22 @@ Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresp
     resolucion = get_resolucion(key='vista_general')
     opciones = ("Concentración vs emisión","Concentración vs número de habitantes","Emisión vs número de habitantes")
     vistas = st.sidebar.radio('Seleccionamos una vista',opciones)
+    st.sidebar.markdown('---')
     width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
     
     
     if vistas==opciones[0]:
-        variables = ['concentracion_pm25', 'emision_pm25']
+        variables = ['Concentración', 'Emisión']
     elif vistas==opciones[1]:
-        variables = ['concentracion_pm25', 'número de habitantes']
+        variables = ['Concentración', 'número de habitantes']
     elif vistas==opciones[2]:
-        variables = ['emision_pm25', 'número de habitantes']
+        variables = ['Emisión', 'número de habitantes']
 
     df = cargamos_datos_resumen(resolucion)
     texto("Concentracion versus emisión de MP<sub>2,5</sub>.", nfont=20,)
     ploteamos_barras(df, resolucion, variables, width_figuras=width_figuras)
     
+    ''' '''
     ''' '''
     texto("Dispersión del promedio invernal de MP<sub>2,5</sub>.", nfont=20)
     plot_dispersion(df, resolucion, width_figuras=width_figuras)    
@@ -82,7 +84,9 @@ def series_de_tiempo():
     
     st.sidebar.subheader('Dominio de interés')
     resolucion = get_resolucion(key='vista_general')
-   
+    ''' 
+    
+    '''
     texto(''' 1. Serie completa''', 25)
     hourly = st.checkbox('Resolución horaria', value=False)
 
@@ -98,7 +102,7 @@ def series_de_tiempo():
     leyenda_h = st.sidebar.checkbox('Leyenda horizontal', value=True)
     leyenda_arriba = st.sidebar.checkbox('Leyenda arriba', value=True)
     leyenda_sombreada = st.sidebar.checkbox('Incluimos dispersión sombreada', value=True)
-    st.markdown('---')
+    #st.markdown('---')
     width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
     
     
@@ -115,7 +119,9 @@ def series_de_tiempo():
                   hourly=hourly,
                   leyenda_arriba=leyenda_arriba,
                   width_figuras=width_figuras)
-        ''' '''
+        ''' 
+        
+        '''
     if show_emisiones:
         texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
         line_plot(_df_serie_completa, y='emision_pm25',
@@ -125,7 +131,9 @@ def series_de_tiempo():
                   leyenda_arriba=leyenda_arriba,
                   width_figuras=width_figuras)
 
-    ''' '''     
+    ''' 
+    
+    '''    
     texto(''' 2. Ciclo diario''', 25)
     texto("El ciclo diario representa la evolución a lo largo de un dia de un parámetro (concentración o emisión). El valor de la variable en cada hora del ciclo corresponde al promedio de todas esas horas durante el periodo del 1 de Mayo al 31 de Agosto de los años 2015 al 2017. Ademas del ciclo diario promedio se ilustra tambien el área de una desviación estandar en torno al valor promedio (área achurada) y representa una medida de dispersión en torno a la media de la variable en cuestión.",)
 
@@ -148,7 +156,9 @@ def series_de_tiempo():
                           showlegend=True,
                           width_figuras=width_figuras)
 
-    ''' '''   
+    ''' 
+    
+    '''   
     texto(''' 3. Ciclo semanal''', 25)
     texto("El ciclo semanal representa la evolución a lo largo de una semana de un parámetro (concentración o emisión) con datos horarios o promedios diarios. El valor de la variable en cada hora/día del ciclo corresponde al promedio de todas esas horas/días durante el periodo del 1 de Mayo al 31 de Agosto de los años 2015 al 2017. Además del ciclo semanal promedio se ilustra también el área de una desviación estandar en torno al valor promedio (área achurada) y representan una medida de dispersión en torno a la media de la variable en cuestión.")
     

@@ -117,7 +117,7 @@ def plot_mapa(df,width_figuras=1000):
                              mapbox_key=mapbox_key,
                              height=1000, width=width_figuras))
     
-    texto('''Mapa de concentración (colores) y emisión (barras) de MP<sub>2,5</sub>. Mientras la concentración [μg/m<sup>3</sup>] corresponde al promedio para el intervalo de tiempo, la emisión corresponde al valor acumulado (suma) para el mismo intervalo de tiempo [ton/periodo]''')
+    texto('''Mapa de concentración (colores) y emisión (barras) de MP<sub>2,5</sub>. Mientras la concentración [μg/m<sup>3</sup>] corresponde al promedio para el intervalo de tiempo, la emisión corresponde al valor acumulado (suma) para el mismo intervalo de tiempo [ton/periodo]''',14, line_height=1)
     
     
     
@@ -229,7 +229,7 @@ def plot_weekly_curves(_df : pd.DataFrame,
     set_leyenda(fig, leyenda_h, leyenda_arriba)
 
     st.plotly_chart(fig)
-    texto(descripcion)
+    texto(descripcion,14, line_height=1)
 
 
 
@@ -354,7 +354,7 @@ def plot_daily_curves(_df : pd.DataFrame,
     set_leyenda(fig, leyenda_h, leyenda_arriba)
     st.plotly_chart(fig)
     
-    texto(descripcion)
+    texto(descripcion,14, line_height=1)
 
 
 
@@ -435,7 +435,7 @@ def line_plot(_df, y='concentracion_pm25',
     
     set_leyenda(fig, leyenda_h, leyenda_arriba)
     st.plotly_chart(fig)
-    texto(descripcion, nfont=16)
+    texto(descripcion, nfont=14, line_height=1)
     
     
 def set_leyenda(fig, leyenda_h, leyenda_arriba):
@@ -474,16 +474,16 @@ def plot_dispersion(df, resolucion, width_figuras=1000, log_scale=True):
 
     _df, col_a_mirar = filtrar_por_resolucion(df, resolucion)
     _df['log número de habitantes'] = np.round(np.log(_df['número de habitantes']),2)
-    _df['emision_pm25'] = np.round(_df['emision_pm25'],2)
-    _df['concentracion_pm25'] = np.round(_df['concentracion_pm25'],2)
+    _df['Emisión'] = np.round(_df['Emisión'],2)
+    _df['Concentración'] = np.round(_df['Concentración'],2)
     if log_scale:
         color = 'log número de habitantes'
     else:
         color = 'número de habitantes'
     
-    x = "emision_pm25"
-    y = "concentracion_pm25"
-    hover_data = {'emision_pm25':':.2f'}
+    x = "Emisión"
+    y = "Concentración"
+    hover_data = {'Emisión':':.2f'}
     fig = px.scatter(_df, x=x, y=y,
                      color=color, 
                      size='número de habitantes',
@@ -497,24 +497,24 @@ def plot_dispersion(df, resolucion, width_figuras=1000, log_scale=True):
                      template=TEMPLATE)
     set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
     st.plotly_chart(fig)
-    texto('''Gráfico de dispersión que ilustra la emisión acumulada diaria [ton/día] y la concentración promedio diaria [μg/m<sup>3</sup>] por región/comuna. Ambos parametros representan la condición promedio invernal (mayo-agosto) del periodo 2015 a 2017 simulados por el sistema de modelacion WRF-CHIMERE. El tamaño y color de cada circulo ilustran el número de habitantes por región/comuna. ''')
+    texto('''Gráfico de dispersión que ilustra la emisión acumulada diaria [ton/día] y la concentración promedio diaria [μg/m<sup>3</sup>] por región/comuna. Ambos parametros representan la condición promedio invernal (mayo-agosto) del periodo 2015 a 2017 simulados por el sistema de modelacion WRF-CHIMERE. El tamaño y color de cada circulo ilustran el número de habitantes por región/comuna.''', 14, line_height=1)
 
 
 
-def ploteamos_barras(df, resolucion, variables=['concentracion_pm25','emision_pm25'], width_figuras=1000):
+def ploteamos_barras(df, resolucion, variables=['Concentración','Emisión'], width_figuras=1000):
     
     _df, col_a_mirar = filtrar_por_resolucion(df, resolucion)
-    _df['concentracion_pm25'] = np.round(_df['concentracion_pm25'],1)
-    _df['emision_pm25'] = np.round(_df['emision_pm25'],2)
+    _df['Concentración'] = np.round(_df['Concentración'],1)
+    _df['Emisión'] = np.round(_df['Emisión'],2)
     var1 = variables[0]
     var2 = variables[1]
     _df.sort_values(by=var1, ascending=False, inplace=True)
-    ylabels = {'concentracion_pm25':'Concentración [μg/m³]',
-              'emision_pm25':'Emisión [ton/día]',
+    ylabels = {'Concentración':'Concentración [μg/m³]',
+              'Emisión':'Emisión [ton/día]',
               'número de habitantes':'número de habitantes'}
     
-    colores_barras = {'concentracion_pm25':'rgb(250, 50, 50)',
-              'emision_pm25':'rgb(128, 128, 128)',
+    colores_barras = {'Concentración':'rgb(250, 50, 50)',
+              'Emisión':'rgb(128, 128, 128)',
               'número de habitantes':'rgb(51, 190, 255)'}
     
     
@@ -536,7 +536,7 @@ def ploteamos_barras(df, resolucion, variables=['concentracion_pm25','emision_pm
     fig.update_layout(template=TEMPLATE)
     fig.update_layout(height=500, width=width_figuras,)
     st.plotly_chart(fig)
-    texto('''Gráfico de barras que ilustra la emisión acumulada diaria [ton/día] y la concentración promedio diaria [μg/m<sup>3</sup>] por región/comuna. Ambos parametros representan la condición promedio invernal (mayo-agosto) del periodo 2015 a 2017 simulados por el sistema de modelación WRF-CHIMERE.''')
+    texto('''Gráfico de barras que ilustra la emisión acumulada diaria [ton/día] y la concentración promedio diaria [μg/m<sup>3</sup>] por región/comuna. Ambos parametros representan la condición promedio invernal (mayo-agosto) del periodo 2015 a 2017 simulados por el sistema de modelación WRF-CHIMERE.''',14, line_height=1)
     
 
     
@@ -570,7 +570,7 @@ def filtrar_por_resolucion(df, resolucion, sort=True):
         
     _df = simplificar_nombre_region(_df)
     if sort:
-        _df.sort_values(by='concentracion_pm25', inplace=True, ascending=False)
+        _df.sort_values(by='Concentración', inplace=True, ascending=False)
     return _df, col_a_mirar
 
 @st.cache
@@ -652,7 +652,9 @@ def cargamos_datos_resumen(resolucion):
     df = pandas_gbq.read_gbq(query,
                              project_id='spike-sandbox',
                              use_bqstorage_api=True)
-    df.rename(columns={'personas':'número de habitantes'}, inplace=True)
+    df.rename(columns={'personas':'número de habitantes', 
+                       'concentracion_pm25': 'Concentración',
+                        'emision_pm25':'Emisión'}, inplace=True)
     return df
 
 
@@ -682,12 +684,13 @@ def plot_logo_spike():
 
 
 # TEXTO
-def texto(texto = 'holi', nfont = 16, color = 'black'):
+def texto(texto = 'holi', nfont = 16, color = 'black', line_height=None):
     st.markdown(
             body=generate_html(
                 text=texto,
                 color=color,
                 font_size=f"{nfont}px",
+                line_height=line_height
             ),
             unsafe_allow_html=True,
             )
