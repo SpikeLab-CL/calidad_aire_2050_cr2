@@ -16,8 +16,8 @@ def main():
     titulo_opcion = st.empty()
     st.sidebar.subheader('Seleccionamos un menú')
 
-    menu = ["1. Vista general","2. Series de tiempo", "3. Mapas"]
-    app_mode = st.sidebar.radio("", menu, index=0, key='seleccion_principal')
+    menu = ["1. Vista general","2. Series de tiempo", "3. Mapas", "4. Comparación escenarios"]
+    app_mode = st.sidebar.radio("", menu, index=2, key='seleccion_principal')
     
     if app_mode==menu[0]:
         texto("Emisiones y Concentraciones de MP<sub>2,5</sub>", nfont=30)
@@ -30,6 +30,10 @@ def main():
     elif app_mode==menu[2]:
         texto("Mapas de concentración y emisión de MP<sub>2,5</sub>", 30)
         mapas()
+        
+    elif app_mode==menu[3]:
+        texto("Comparación de escenarios de emisión de MP<sub>2,5</sub>", 30)
+        escenarios()
         
     width_pagina = st.sidebar.slider('seleccionamos un tamaño', 0, 2000, 1000)
     max_width_(width_pagina)
@@ -192,7 +196,8 @@ def mapas():
     st.sidebar.subheader('Período a graficar')
     mapa = ['Todo el período'] + [f"Promedio de {k}" for k in ['Mayo','Junio', 'Julio', 'Agosto']]
     modo_mapa = st.sidebar.radio("Seleccionamos un período para promediar", mapa, index=0, key='seleccion_principal')
-    
+    #bearing = st.sidebar.slider('Bearing', -90, 90, -90)
+    #pitch = st.sidebar.slider('Pitch', 0, 90, 40)
     width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
 
     if modo_mapa == mapa[0]:
@@ -216,5 +221,31 @@ def mapas():
     df_mapa = cargamos_raster(fecha_inicio, fecha_fin)
     plot_mapa(df_mapa, width_figuras=width_figuras)    
 
+# 4. Escenarios
+
+def escenarios():
+    texto('A continuación presentamos una comparación para los campos de concentración de MP<sub>2,5</sub> de los 3 escenarios Comb (=Regional), Reb (=Regional+Efecto Rebote) y Comuna (=Comunal)')
+    
+    st.sidebar.subheader('Dominio de interés')
+    resolucion = get_resolucion(key='escenarios')
+    df_ciclo_escenarios = cargamos_serie_escenario_ciclo_diario(resolucion=resolucion)
+    options = filtrar_espacial(df_ciclo_escenarios,resolucion)
+    if options==[]:
+        st.sidebar.error('Lista vacía')
+    else:
+        df_ciclo_escenarios_filtrado = filtrar_options(df_ciclo_escenarios, options, resolucion)
+    st.sidebar.markdown('---')
+    width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
+    
+    
+    df_barras_escenarios = cargamos_datos_comparacion_escenarios(resolucion)
+    plot_barras_escenarios(df_barras_escenarios, resolucion=resolucion, width_figuras=width_figuras)
+    texto('caption', 14)
+    
+    texto('Series de tiempo por escenario', 25)
+    plot_ciclo_diario_escenarios(df_ciclo_escenarios_filtrado, resolucion, width_figuras=width_figuras)
+
+    
+    
 
 main()

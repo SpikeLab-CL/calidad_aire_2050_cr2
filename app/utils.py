@@ -28,6 +28,124 @@ COLOR_MAP = {"default": "#262730",
 
 #factor_escala_emisiones = 3600*4*10**6 AL FINAL ESCALÉ DESDE BQ
 
+
+# 4. ESCENARIOS
+def plot_ciclo_diario_escenarios(df, resolucion, width_figuras=1000):
+    _df, col_a_mirar = filtrar_escenario_por_resolucion(df, resolucion)
+    _df = simplificar_nombre_region(_df)
+    #print(_df.sort_values(by='hora'))
+
+    df_aux = _df.melt(id_vars=['hora', 'region'], value_vars=['ref_mp25', 'comuna_mp25', 'comb_mp25', 'rebote_mp25'])
+    df_aux.rename(columns={'variable':'Escenario'}, inplace=True)
+    df_aux.sort_values(by=['hora', 'Escenario'], inplace=True)
+    regiones_a_plotear = df_aux[col_a_mirar].unique()
+    for region_a_mirar in regiones_a_plotear:
+        fig = px.line(df_aux.query(f'region=="{region_a_mirar}"'), x="hora", y="value", color="Escenario",
+                      line_group="Escenario", hover_name="Escenario", title=region_a_mirar)
+        fig.update_layout(template=TEMPLATE)
+        fig.update_layout(height=400, width=width_figuras,)
+        st.plotly_chart(fig)
+        
+        
+def cargamos_serie_escenario_ciclo_diario(resolucion='Todas las regiones'):
+    if resolucion=='Todas las regiones':
+        var_espacio = 'region'
+        var_cruce = 'region'
+    else:
+        var_espacio = 'comuna, region'
+        var_cruce = 'comuna'
+    query = f'''
+    WITH  base_concentracion as(
+        SELECT Time, {var_espacio}, 
+        AVG(ref_mp25) as ref_mp25, AVG(comuna_mp25) as comuna_mp25, AVG(comb_mp25) as comb_mp25 , AVG(rebote_mp25) as rebote_mp25  
+        FROM CR2.concentracion_escenarios_w_geo
+        GROUP BY Time, {var_espacio}
+    )
+    SELECT EXTRACT(HOUR from Time) as hora, {var_espacio},
+    AVG(ref_mp25) as ref_mp25, AVG(comuna_mp25) as comuna_mp25, AVG(comb_mp25) as comb_mp25 , AVG(rebote_mp25) as rebote_mp25  
+    FROM base_concentracion
+    GROUP BY hora, {var_espacio}
+    ORDER BY hora ASC, {var_espacio}
+    '''
+    
+    df = pandas_gbq.read_gbq(query,
+                             project_id='spike-sandbox',
+                             use_bqstorage_api=True)
+    return df
+
+
+#--------------
+def plot_barras_escenarios(df, resolucion='Todas las regiones', width_figuras=1000):
+    
+    _df, col_a_mirar = filtrar_escenario_por_resolucion(df, resolucion)
+    _df = simplificar_nombre_region(_df)
+
+    x = _df[col_a_mirar]
+    fig = go.Figure()
+    escenarios = {'ref_mp25':'Referencia', 'rebote_mp25':'Rebote', 'comuna_mp25':'Comunal','comb_mp25':'Regional'}
+    nombre_colores = ['#AB63FA', '#00CC96', '#EF553B', '#636EFA']
+
+    for escenario, color in zip(list(escenarios.keys()), nombre_colores):
+        fig.add_trace(go.Bar(
+            x=x,
+            y=_df[escenario],
+            name=escenarios[escenario],
+            marker_color=color
+        ))
+
+
+    # Here we modify the tickangle of the xaxis, resulting in rotated labels.
+    fig.update_layout(barmode='group', xaxis_tickangle=-45,
+                     legend=dict(x=0, y=1.1,orientation="h"),
+                       yaxis=dict(title='Concentración promedio [μg/m³] '),)
+    fig.update_layout(template=TEMPLATE)
+    fig.update_layout(height=500, width=width_figuras,)
+ 
+    st.plotly_chart(fig)
+
+
+def filtrar_escenario_por_resolucion(df, resolucion):
+    if resolucion == 'Todas las regiones':
+        _df = df.copy()
+        col_a_mirar = 'region'
+        
+    else:
+        _df = df.query('region==@resolucion')
+        col_a_mirar = 'comuna'
+        
+    col_referencia = [m for m in _df.columns if 'ref' in m]
+    _df.sort_values(by=col_referencia, ascending=False, inplace=True)
+    return _df, col_a_mirar
+
+def cargamos_datos_comparacion_escenarios(resolucion):
+    if resolucion=='Todas las regiones':
+        var_espacio = 'region'
+        var_cruce = 'region'
+    else:
+        var_espacio = 'comuna, region'
+        var_cruce = 'comuna'
+
+    query = f'''
+        WITH  base_diaria as(
+            SELECT EXTRACT(DATE FROM Time) as date, {var_espacio}, 
+            AVG(ref_mp25) as ref_mp25, AVG(comuna_mp25) as comuna_mp25, AVG(comb_mp25) as comb_mp25 , AVG(rebote_mp25) as rebote_mp25  
+            FROM CR2.concentracion_escenarios_w_geo
+            GROUP BY date, {var_espacio}
+        ),
+        base_agregada as(
+        SELECT {var_espacio}, AVG(ref_mp25) as ref_mp25, AVG(comuna_mp25) as comuna_mp25, AVG(comb_mp25) as comb_mp25 , AVG(rebote_mp25) as rebote_mp25
+        FROM base_diaria
+        GROUP BY {var_espacio}
+        )
+        SELECT * FROM base_agregada '''
+
+    df = pandas_gbq.read_gbq(query,
+                             project_id='spike-sandbox',
+                             use_bqstorage_api=True)
+    return df
+
+
+
 def filtrar_espacial(df, resolucion):
     col_a_mirar = columna_a_mirar(resolucion)
     tipos = list(df[col_a_mirar].unique())
@@ -74,7 +192,7 @@ def cargamos_raster(date_inicio = "2015-05-03", date_fin = "2015-05-04",):
     return df
 
 
-def plot_mapa(df,width_figuras=1000):
+def plot_mapa(df,width_figuras=1000, pitch=40, bearing=-90):
     
     emisiones_comunales = df.groupby('comuna')[['lat','lon','emision_pm25']]\
                             .agg({'lat':'mean', 'lon':'mean','emision_pm25':'sum'}).reset_index()
@@ -86,30 +204,29 @@ def plot_mapa(df,width_figuras=1000):
                              data=emisiones_comunales,
                              get_position=["lon", "lat"],
                              get_elevation="emision_pm25",
-                             elevation_scale=800,
-                             radius=2000,
-                             get_fill_color=["emision_pm25", "emision_pm25", "emision_pm25", 140],
+                             elevation_scale=600,
+                             radius=2500,
+                             get_fill_color=["emision_pm25",0, "emision_pm25", 140],
                              pickable=True,
                              auto_highlight=True,)
 
 
     concentraciones = pdk.Layer("HeatmapLayer",
                              data=df2,
-                             opacity=0.3,
+                             opacity=0.1,
                              get_position=["lon", "lat"],
-                             aggregation='"SUM"',
-                             threshold=0.05,
-                             #color_range=COLOR_BREWER_BLUE_SCALE,
+                             aggregation='MEAN',
+                             threshold=0.1,
                              get_weight="concentracion_pm25",
                              pickable=True,)
 
-    view_state = pdk.ViewState(longitude=df2.lon.mean(),
-                               latitude=df2.lat.mean(),
-                               zoom=5,
-                               min_zoom=4,
-                               max_zoom=10,
-                               pitch=40.5,
-                               bearing=-90)
+    view_state = pdk.ViewState(longitude=-70,
+                               latitude=-45,
+                               zoom=4,
+                               min_zoom=2,
+                               max_zoom=7,
+                               pitch=60,
+                               bearing=35)
 
     st.pydeck_chart(pdk.Deck(layers=[emisiones, concentraciones],
                              initial_view_state=view_state,
@@ -617,38 +734,7 @@ def cargamos_datos_resumen(resolucion):
             ON pm25.{var_cruce}=habitantes.{var_cruce}
         )
         SELECT * FROM base_agregada'''
-#     else:
-#         query = '''
-#         WITH  base_comunal_concentracion as(
-#             SELECT date, comuna, region, AVG(PM25) as concentracion_pm25 --promediamos la concentración por comuna por hora
-#             FROM CR2.concentraciones_PM25_w_geo
-#             GROUP BY date, comuna, region
-#         ),
-#         base_comunal_emision as(
-#             SELECT date, comuna, region, SUM(EMI_PM25) as emision_pm25 --las emisiones las sumamos
-#             FROM CR2.emisiones_PM25_w_geo
-#             GROUP BY date, comuna, region
-#         ),
-#         base_agrupada as(
-#             SELECT con.*, emi.emision_pm25,
-#             FROM base_comunal_concentracion as con
-#             JOIN base_comunal_emision as emi
-#                 ON con.comuna=emi.comuna AND con.date=emi.date
-#             WHERE con.region!="Zona sin demarcar AND con.region!="Región de Magallanes y Antártica Chilena"
-#         ),
-#         base_agregada as(
-#         SELECT comuna, region, AVG(emision_pm25) as emision_pm25, AVG(concentracion_pm25) as concentracion_pm25,
-#         FROM base_agrupada
-#         GROUP BY comuna, region
-#         ),
-#         base_agregada_habitantes as(
-#         SELECT pm25.*, habitantes.* EXCEPT(comuna, region, cod_comuna)
-#         FROM base_agregada as pm25
-#         JOIN CR2.habitantes_por_comuna as habitantes
-#             ON pm25.comuna=habitantes.comuna
-#         )
-#         SELECT * FROM base_agregada_habitantes'''
-#
+
     df = pandas_gbq.read_gbq(query,
                              project_id='spike-sandbox',
                              use_bqstorage_api=True)
