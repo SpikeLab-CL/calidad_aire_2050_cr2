@@ -8,14 +8,15 @@ import datetime
 from PIL import Image    
 
 def main():
+    st.beta_set_page_config(page_title='Explorador de calidad del aire',
+                           page_icon=':earth-americas:')
+    width_pagina = 1100
+    max_width_(width_pagina)
     
     plot_logo_pagina()
     texto('''Una herramienta para visualizar resultados adicionales del Informe a las Naciones "El aire que respiramos: pasado, presente y futuro. Contaminación atmosférica por MP2,5 en el centro y sur de Chile"''', 15, sidebar=True)
     
-    #Menu para seleccionar qué hacemos
-    #    width_pagina = st.sidebar.slider('seleccionamos un tamaño', 700, 1800, 1100)
-    width_pagina = 1100
-    max_width_(width_pagina)
+ 
     titulo_opcion = st.empty()
     st.sidebar.subheader('Seleccionamos un menú')
 
