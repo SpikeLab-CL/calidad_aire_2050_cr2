@@ -418,6 +418,7 @@ def cargamos_serie_semanal(resolucion = 'Todas las regiones'):
 #                              project_id='spike-sandbox',
 #                              use_bqstorage_api=True)
 #     df.to_csv(f'./data/ST_series_ciclo_semanal_{var_cruce}.csv', index=False)
+
     df = pd.read_csv(f'./data/ST_series_ciclo_semanal_{var_cruce}.csv')
 
     return df
@@ -541,6 +542,7 @@ def cargamos_serie_24hrs(resolucion='Todas las regiones'):
 #                              project_id='spike-sandbox',
 #                              use_bqstorage_api=True)
 #     df.to_csv(f'./data/ST_series_ciclo_diario_{var_cruce}.csv', index=False)
+
     df = pd.read_csv(f'./data/ST_series_ciclo_diario_{var_cruce}.csv')
     return df
 
@@ -676,6 +678,7 @@ def cargamos_series_tiempo_completas(hourly=False, resolucion='Todas las regione
 #                              project_id='spike-sandbox',
 #                              use_bqstorage_api=True)
 #     df.to_csv(f'./data/ST_series_completas_{var_cruce}.csv', index=False)
+
     df = pd.read_csv(f'./data/ST_series_completas_{var_cruce}.csv')
     return df
 
@@ -790,8 +793,8 @@ def plot_dispersion(df : pd.DataFrame,
 
     fig = px.scatter(_df, x=x, y=y,
                      color=color, 
-                     size='size',
-                     #hover_data=hover_data,
+                     size=color,
+                     hover_data=['Número de habitantes'],
                      hover_name=col_a_mirar,
                      range_x=[0,max_x],
                      range_y=[0,max_y])
@@ -822,12 +825,11 @@ def ploteamos_barras(df, resolucion, variables=['Concentración','Emisión'], wi
     _df.sort_values(by=var1, ascending=False, inplace=True)
     ylabels = {'Concentración':'Concentración [μg/m³]',
               'Emisión':'Emisión [ton/día]',
-              'número de habitantes':'número de habitantes'}
+              'Número de habitantes':'Número de habitantes'}
     
     colores_barras = {'Concentración':'rgb(250, 50, 50)',
               'Emisión':'rgb(128, 128, 128)',
-              'número de habitantes':'rgb(51, 190, 255)'}
-    
+              'Número de habitantes':'rgb(51, 190, 255)'}
     
     # ploteamos
     trace0 = go.Bar(x=_df[col_a_mirar] , y= _df[var1], name=var1 ,marker_color=colores_barras[var1]) 
@@ -870,10 +872,6 @@ def filtrar_por_resolucion(df, resolucion, sort=True):
     if resolucion == 'Todas las regiones':
         _df = df.copy()
         col_a_mirar = 'region'
-        
-    elif resolucion == 'Todas las comunas':
-        _df = df.copy()
-        col_a_mirar = 'comuna'
         
     else:
         _df = df.query('region==@resolucion')
@@ -952,8 +950,9 @@ def animacion(resolucion : str = 'Todas las regiones', escenario : str = 'ref', 
                   'comuna': 'E. Comunal',
                   'comb': 'E. Regional',}
     df_diario = cargamos_datos_resumen_diario_animacion(resolucion)
+    df_diario, col_a_mirar = filtrar_por_resolucion(df_diario, resolucion, sort=False)
     df_aux = df_diario.copy()
-    df_aux = simplificar_nombre_region(df_aux)
+    #df_aux = simplificar_nombre_region(df_aux)
     x = f'Emisión {escenarios[escenario]}'
     y = f'Concentración {escenarios[escenario]}'
     
@@ -962,6 +961,8 @@ def animacion(resolucion : str = 'Todas las regiones', escenario : str = 'ref', 
     df_aux['día'] = df_aux['date'].apply(lambda x: x.dayofyear)
     df_aux['día'] = df_aux['día'] - df_aux['día'].min() + 1 
     df_aux.sort_values(by='día', inplace=True)
+    
+    df_aux['Logaritmo número de habitantes'] = np.round(np.log10(df_aux['Número de habitantes']),2)
 
 
     max_x = 1.1*df_aux[[m for m in df_aux.columns if 'Emisión' in m]].max().max()
@@ -970,21 +971,24 @@ def animacion(resolucion : str = 'Todas las regiones', escenario : str = 'ref', 
                      x=x,
                      y=y,
                      animation_frame="día",
-                     animation_group="region",
-                     size="número de habitantes",
-                     color="region",
-                     hover_name="region",
+                     animation_group=col_a_mirar,
+                     size='Logaritmo número de habitantes',
+                     color=col_a_mirar,
+                     hover_name=col_a_mirar,
+                     hover_data=['Número de habitantes'],
                      range_x=[0,max_x],
                      range_y=[0,max_y])
         
-    fig.update_layout(height=500, width=width_figuras,template=TEMPLATE,
-                     annotations=[dict(x=1,
+    fig.update_layout(height=500,
+                      width=width_figuras,
+                      template=TEMPLATE,
+                      annotations=[dict(x=1,
                                        y=-0.55,
                                        showarrow=False,
                                        text="31 de Agosto",
                                        xref="paper",
                                        yref="paper"),
-                                  dict(x=0.1,
+                                   dict(x=0.1,
                                        y=-0.55,
                                        showarrow=False,
                                        text="1 de Mayo",
@@ -1041,13 +1045,14 @@ def cargamos_datos_resumen_diario_animacion(resolucion):
         )
         SELECT * FROM base_final'''
 
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
-    df.rename(columns={'personas':'número de habitantes', 
-                       'concentracion_pm25': 'Concentración',
-                        'emision_pm25':'Emisión'}, inplace=True)
-    df.to_csv(f'./data/VG_datos_animacion_{var_cruce}.cvs', index=False)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.rename(columns={'personas':'Número de habitantes', 
+#                        'concentracion_pm25': 'Concentración',
+#                         'emision_pm25':'Emisión'}, inplace=True)
+#     df.to_csv(f'./data/VG_datos_animacion_{var_cruce}.cvs', index=False)
+    
     df = pd.read_csv(f'./data/VG_datos_animacion_{var_cruce}.cvs')
     df['date'] = df['date'].apply(pd.to_datetime)
     return df
@@ -1078,19 +1083,6 @@ def plot_logo_spike():
     
     
 
-# def plot_logo_spike():
-#      st.sidebar.markdown(
-#         "<br>"
-#         '<div style="text-align: center;">'
-#         '<a href="http://spikelab.xyz"> '
-#         '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/logo-grey-transparent.png" width=150>'
-#         " </img>"
-#         "</a> </div>",
-#         unsafe_allow_html=True,
-#     )
-
-
-# TEXTO
 def texto(texto : str = 'holi',
           nfont : int = 16,
           color : str = 'black',
