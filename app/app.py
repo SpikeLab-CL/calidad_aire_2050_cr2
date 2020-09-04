@@ -13,6 +13,9 @@ def main():
     texto('''Una herramienta para visualizar resultados adicionales del Informe a las Naciones "El aire que respiramos: pasado, presente y futuro. Contaminación atmosférica por MP2,5 en el centro y sur de Chile"''', 15, sidebar=True)
     
     #Menu para seleccionar qué hacemos
+    #    width_pagina = st.sidebar.slider('seleccionamos un tamaño', 700, 1800, 1100)
+    width_pagina = 1100
+    max_width_(width_pagina)
     titulo_opcion = st.empty()
     st.sidebar.subheader('Seleccionamos un menú')
 
@@ -35,9 +38,7 @@ def main():
         texto("Comparación entre escenarios de emisión y concentración de MP<sub>2,5</sub>", 30)
         escenarios(width_figuras=width_figuras)
         
-#    width_pagina = st.sidebar.slider('seleccionamos un tamaño', 700, 1800, 1100)
-    width_pagina = 1100
-    max_width_(width_pagina)
+
     
 
     # LOGOS 
@@ -85,29 +86,8 @@ Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresp
     plot_dispersion(df, resolucion, variables=variables, escenario=escenario, width_figuras=width_figuras)    
     
     st.markdown('---')
-    st.subheader('¿Idea de animación?')
-    df_diario = cargamos_datos_resumen_diario_animacion(resolucion)
-    df_aux = df_diario.copy()
-    df_aux['day'] = df_aux['date'].apply(lambda x: x.dayofyear)
-    df_aux.sort_values(by='day', inplace=True)
-    import plotly.express as px
-    df = px.data.gapminder()
-    max_x = 1.1*df_aux['emision_ref'].max()
-    max_y = 1.1*df_aux['concentracion_ref'].max()
-    fig = px.scatter(df_aux,
-                     x="emision_ref",
-                     y="concentracion_ref",
-                     animation_frame="day",
-                     animation_group="region",
-                     size="número de habitantes",
-                     color="region",
-                     hover_name="region",
-                     range_x=[-1,max_x],
-                     range_y=[-3,max_y])
-        
-    fig.update_layout(height=500, width=width_figuras,template=TEMPLATE)
-    set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
-    st.plotly_chart(fig)
+    st.subheader('Dispersión animada')
+    animacion(resolucion=resolucion, width_figuras=width_figuras)
     
     
 
@@ -124,7 +104,7 @@ def series_de_tiempo(width_figuras = 1000):
     ''' 
     
     '''
-    texto(''' 1. Serie completa''', 25)
+    #texto(''' 1. Serie completa''', 25)
     #hourly = st.checkbox('Resolución horaria', value=False)
     hourly = False
 
@@ -133,9 +113,8 @@ def series_de_tiempo(width_figuras = 1000):
     options = filtrar_espacial(_df_serie_completa,resolucion)
     if options==[]:
         st.sidebar.error('Lista vacía')
-    show_concentraciones = st.sidebar.checkbox('Gráficos de concentraciones', value=True)
-    show_emisiones = st.sidebar.checkbox('Gráficos de emisiones', value=False)
-    
+
+
     st.sidebar.markdown('---')
     st.sidebar.subheader('Ajustes visuales gráficos')
     leyenda_h = st.sidebar.checkbox('Leyenda horizontal', value=True)
@@ -146,31 +125,31 @@ def series_de_tiempo(width_figuras = 1000):
     
     
     _df_serie_completa = filtrar_options(_df_serie_completa, options, resolucion)
-    if show_concentraciones:
-        texto(f"Concentración de MP<sub>2,5</sub> para {escenario_escogido}", nfont=20)
-        line_plot(_df_serie_completa, y='concentracion',
-                  resolucion=resolucion,
-                  escenario=escenario,
-                  leyenda_h=leyenda_h,
-                  hourly=hourly,
-                  leyenda_arriba=leyenda_arriba,
-                  width_figuras=width_figuras)
+    st.markdown('---')
+    texto(f"Concentración de MP<sub>2,5</sub> para {escenario_escogido}", nfont=20)
+    line_plot(_df_serie_completa, y='concentracion',
+              resolucion=resolucion,
+              escenario=escenario,
+              leyenda_h=leyenda_h,
+              hourly=hourly,
+              leyenda_arriba=leyenda_arriba,
+              width_figuras=width_figuras)
     texto(' ')
     texto(' ')
-    if show_emisiones:
-        texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
-        line_plot(_df_serie_completa, y='emision',
-                  resolucion=resolucion,
-                  leyenda_h=leyenda_h,
-                  hourly=hourly,
-                  leyenda_arriba=leyenda_arriba,
-                  width_figuras=width_figuras)
+#     texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
+#     line_plot(_df_serie_completa, y='emision',
+#               resolucion=resolucion,
+#               leyenda_h=leyenda_h,
+#               hourly=hourly,
+#               leyenda_arriba=leyenda_arriba,
+#               width_figuras=width_figuras)
 
     ''' 
     
     '''    
     st.markdown('---')
-    texto(''' 2. Ciclo diario''', 25)
+    texto(''' Ciclo diario''', 25)
+    texto(' ')
     texto("El ciclo diario representa la evolución a lo largo de un dia de un parámetro (concentración o emisión). El valor de la variable en cada hora del ciclo corresponde al promedio de todas esas horas durante el período del 1 de Mayo al 31 de Agosto de los años 2015 al 2017. Además del ciclo diario promedio se ilustra tambien el área de una desviación estándar en torno al valor promedio (área achurada) que representa una medida de dispersión en torno a la media de la variable en cuestión.",)
     texto(' ')
 
@@ -178,71 +157,68 @@ def series_de_tiempo(width_figuras = 1000):
     _df_diario = filtrar_serie_daily_por_resolucion(df_diario, resolucion)
     _df_diario = filtrar_options(_df_diario, options, resolucion)
 
-    if show_concentraciones:
-        texto(f"Concentración de MP<sub>2,5</sub>", nfont=20)
-        plot_daily_curves(_df_diario,
-                          resolucion,
-                          tipo='concentracion',
-                          escenario=escenario,
-                          show_shade_fill=leyenda_sombreada,
-                          leyenda_h=leyenda_h,
-                          showlegend=True,
-                          leyenda_arriba=leyenda_arriba,
-                          width_figuras=width_figuras)
+
+    texto(f"Concentración de MP<sub>2,5</sub>", nfont=20)
+    plot_daily_curves(_df_diario,
+                      resolucion,
+                      tipo='concentracion',
+                      escenario=escenario,
+                      show_shade_fill=leyenda_sombreada,
+                      leyenda_h=leyenda_h,
+                      showlegend=True,
+                      leyenda_arriba=leyenda_arriba,
+                      width_figuras=width_figuras)
     texto(' ')
     texto(' ')
-    if show_emisiones:
-        texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
-        plot_daily_curves(_df_diario,
-                          resolucion,
-                          tipo='emision', 
-                          escenario=escenario,
-                          show_shade_fill=leyenda_sombreada,
-                          leyenda_h=leyenda_h,
-                          showlegend=True,
-                          leyenda_arriba=leyenda_arriba,
-                          width_figuras=width_figuras)
+
+    texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
+    plot_daily_curves(_df_diario,
+                      resolucion,
+                      tipo='emision', 
+                      escenario=escenario,
+                      show_shade_fill=leyenda_sombreada,
+                      leyenda_h=leyenda_h,
+                      showlegend=True,
+                      leyenda_arriba=leyenda_arriba,
+                      width_figuras=width_figuras)
 
     ''' 
     
     '''   
-    st.markdown('---')
-    texto(''' 3. Ciclo semanal''', 25)
-    texto("El ciclo semanal representa la evolución a lo largo de una semana de un parámetro (concentración o emisión). El valor de la variable en cada día del ciclo corresponde al promedio de todas esos días durante el periodo del 1 de Mayo al 31 de Agosto de los años 2015 al 2017. Además del ciclo semanal promedio se ilustra también el área de una desviación estándar en torno al valor promedio (área achurada) que representan una medida de dispersión en torno a la media de la variable en cuestión.")
-    texto(' ')
+#     st.markdown('---')
+#     texto(''' 3. Ciclo semanal''', 25)
+#     texto("El ciclo semanal representa la evolución a lo largo de una semana de un parámetro (concentración o emisión). El valor de la variable en cada día del ciclo corresponde al promedio de todas esos días durante el periodo del 1 de Mayo al 31 de Agosto de los años 2015 al 2017. Además del ciclo semanal promedio se ilustra también el área de una desviación estándar en torno al valor promedio (área achurada) que representan una medida de dispersión en torno a la media de la variable en cuestión.")
+#     texto(' ')
     
-    df_semanal = cargamos_serie_semanal(resolucion=resolucion)
-    _df_semanal = filtrar_serie_daily_por_resolucion(df_semanal, resolucion, temporal = 'day')
-    _df_semanal = filtrar_options(_df_semanal, options, resolucion)
+#     df_semanal = cargamos_serie_semanal(resolucion=resolucion)
+#     _df_semanal = filtrar_serie_daily_por_resolucion(df_semanal, resolucion, temporal = 'day')
+#     _df_semanal = filtrar_options(_df_semanal, options, resolucion)
 
-    if show_concentraciones:
-        texto(f"Concentración de MP<sub>2,5</sub>", nfont=20)
-        plot_weekly_curves(_df_semanal,
-                           resolucion=resolucion,
-                           tipo='concentracion',
-                           escenario=escenario,
-                           show_shade_fill=leyenda_sombreada,
-                           leyenda_h=leyenda_h,
-                           showlegend=True,
-                           leyenda_arriba=leyenda_arriba,
-                           width_figuras=width_figuras)
-    texto(' ')
-    texto(' ')
-    if show_emisiones:
-        texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
-        plot_weekly_curves(_df_semanal,
-                           resolucion=resolucion,
-                           tipo='emision',
-                           escenario=escenario,
-                           show_shade_fill=leyenda_sombreada,
-                           showlegend=True,
-                           leyenda_h=leyenda_h,
-                           leyenda_arriba=leyenda_arriba,
-                           width_figuras=width_figuras)
-  
-
-
-    
+#     if show_concentraciones:
+#         texto(f"Concentración de MP<sub>2,5</sub>", nfont=20)
+#         plot_weekly_curves(_df_semanal,
+#                            resolucion=resolucion,
+#                            tipo='concentracion',
+#                            escenario=escenario,
+#                            show_shade_fill=leyenda_sombreada,
+#                            leyenda_h=leyenda_h,
+#                            showlegend=True,
+#                            leyenda_arriba=leyenda_arriba,
+#                            width_figuras=width_figuras)
+#     texto(' ')
+#     texto(' ')
+#     if show_emisiones:
+#         texto("Emisión de MP<sub>2,5</sub>", nfont=20,)
+#         plot_weekly_curves(_df_semanal,
+#                            resolucion=resolucion,
+#                            tipo='emision',
+#                            escenario=escenario,
+#                            show_shade_fill=leyenda_sombreada,
+#                            showlegend=True,
+#                            leyenda_h=leyenda_h,
+#                            leyenda_arriba=leyenda_arriba,
+#                            width_figuras=width_figuras)
+   
 # 3. MAPAS    
 def mapas(width_figuras = 1000):
     texto(' ')
@@ -289,8 +265,9 @@ def mapas(width_figuras = 1000):
 # 4. Escenarios
 
 def escenarios(width_figuras = 1000):
+    texto(' ')
     texto('Las figuras en esta sección correponden a los resultados de las simulaciones realizadas usando las emisiones de diferentes escenarios que consideran distintas evoluciones de medidas de mitigación desde el presente hasta el año 2050. Los escenarios de proyeccion de emisiones considerados son Comunal, Regional y Regional más efecto rebote. Cada una de las simulaciones se realizaron con la misma meteorología (mayo a agosto de los años 2015 a 2017). La comparación entre los escenarios con el caso presente permite examinar el impacto de las medidas de mitigación incluídas en cada escenario, si se implementaran hoy. Así, los resultados permiten evaluar la eficiencia de estas medidas y su efecto en mejorar la calidad del aire.')
-    
+    texto(' ')
     st.sidebar.subheader('Dominio de interés')
     resolucion = get_resolucion(key='escenarios')
     df_ciclo_escenarios = cargamos_serie_escenario_ciclo_diario(resolucion=resolucion)
@@ -311,7 +288,7 @@ def escenarios(width_figuras = 1000):
     
     
     
-    texto('''Concentración promedio de MP2,5 asociado a cada escenario''', 25)
+    texto('''Concentración promedio de MP<sub>2,5</sub> asociado a cada escenario''', 25)
     plot_barras_escenarios(df_barras_escenarios, 
                            tipo='concentracion',
                            resolucion=resolucion,
@@ -320,7 +297,7 @@ def escenarios(width_figuras = 1000):
     
     texto(' ')
     texto(' ')
-    texto('''Emisiones de MP2,5 asociadas a cada escenario''', 25)
+    texto('''Emisiones de MP<sub>2,5</sub> asociadas a cada escenario''', 25)
     plot_barras_escenarios(df_barras_escenarios, 
                            tipo='emision',
                            resolucion=resolucion,
@@ -352,10 +329,11 @@ def escenarios(width_figuras = 1000):
         espacio_figuras[fig] = st.empty()
         
     if generamos_concentracion:
+        caption = '''Evolución diaria promedio de las emisiones acumulada de MP<sub>2,5</sub> por región/comuna. La línea continua indica el valor promedio para cada hora del día.''' 
+        texto(caption, 16, line_height=1.1, color='grey')
         for fig in figuras_concentracion.keys():
             espacio_figuras[fig].plotly_chart(figuras_concentracion[fig])
-        caption = '''Evolución diaria promedio de las emisiones acumulada de MP<sub>2,5</sub> por región/comuna. La línea continua indica el valor promedio para cada hora del día.''' 
-        texto(caption, 14, line_height=1, color='grey')
+        
 
     else:
         for fig in figuras_concentracion.keys():
@@ -363,10 +341,11 @@ def escenarios(width_figuras = 1000):
 
         
     if generamos_emision:
+        caption = '''Evolución diaria promedio de la concentración promedio de MP<sub>2,5</sub> por región/comuna. La línea continua indica el valor promedio para cada hora del día.''' 
+        texto(caption, 16, line_height=1.1, color='grey')
         for fig in figuras_emision.keys():
             espacio_figuras[fig].plotly_chart(figuras_emision[fig])
-        caption = '''Evolución diaria promedio de la concentración promedio de MP<sub>2,5</sub> por región/comuna. La línea continua indica el valor promedio para cada hora del día.''' 
-        texto(caption, 14, line_height=1, color='grey')
+        
 
     else:
         for fig in figuras_emision.keys():

@@ -154,7 +154,7 @@ def plot_barras_escenarios(df : pd.DataFrame,
         
     else:
         yaxis_title = 'Emisión promedio [ton/día]'
-        descripcion = '''Gráfico de barras que ilustra la emisión promedio diaria de MP<sub>2,5</sub> [ton/día] por región/comuna para el caso Presente y las emisiones proyectadas para el año 2050 para cada uno de las trayectorias de emisiones (Comunal, Regional más efecto rebote y Regional)
+        descripcion = '''Gráfico de barras que ilustra la emisión acumulada diaria promedio de MP<sub>2,5</sub> [ton/día] por región/comuna para el caso Presente y las emisiones proyectadas para el año 2050 para cada uno de las trayectorias de emisiones (Comunal, Regional más efecto rebote y Regional)
 '''
         
     x = _df[col_a_mirar]
@@ -731,22 +731,25 @@ def set_leyenda(fig, leyenda_h, leyenda_arriba):
         fig.layout.update(legend=dict(x=-0.1, y=-0.1))
 
     
-def get_resolucion(key='resolucion'):    
+def get_resolucion(key : str = 'resolucion'):    
     lista_regiones = ['Todas las regiones',
-                      #'Región de Coquimbo',
                       'Región de Valparaíso',
                       'Región Metropolitana de Santiago',
                       "Región del Libertador Bernardo O'Higgins",
                       'Región del Maule', 
                       'Región de Ñuble',
-                      'Región del Bío-Bío',
+                      'Región del BioBío',
                       'Región de La Araucanía',
                       'Región de Los Ríos',
                       'Región de Los Lagos', 
                       'Región de Aysén del Gral.Ibañez del Campo']
-                      #'Todas las comunas']
         
-    resolucion = st.sidebar.selectbox('Seleccione la/las región/es de interés', lista_regiones, key=key)
+    resolucion = st.sidebar.selectbox('Seleccione la/las región/es de interés',
+                                      lista_regiones,
+                                      key=key)
+    
+    if resolucion == 'Región del Biobío':
+        resolucion = 'Región del Bío-Bío'
     return resolucion
 
 
@@ -940,6 +943,56 @@ def cargamos_datos_resumen(resolucion):
     df = pd.read_csv(f'./data/VG_datos_resumen_{var_cruce}.csv')
     return df
 
+
+def animacion(resolucion : str = 'Todas las regiones', escenario : str = 'ref', width_figuras : int = 1200):
+
+    
+    escenarios = {'ref': 'Presente', 
+                   'rebote': 'E. Regional (+ efecto rebote)',
+                  'comuna': 'E. Comunal',
+                  'comb': 'E. Regional',}
+    df_diario = cargamos_datos_resumen_diario_animacion(resolucion)
+    df_aux = df_diario.copy()
+    df_aux = simplificar_nombre_region(df_aux)
+    x = f'Emisión {escenarios[escenario]}'
+    y = f'Concentración {escenarios[escenario]}'
+    
+    df_aux.rename(columns={f'emision_{escenario}' : x, f'concentracion_{escenario}' : y}, inplace=True)
+
+    df_aux['día'] = df_aux['date'].apply(lambda x: x.dayofyear)
+    df_aux['día'] = df_aux['día'] - df_aux['día'].min() + 1 
+    df_aux.sort_values(by='día', inplace=True)
+
+
+    max_x = 1.1*df_aux[[m for m in df_aux.columns if 'Emisión' in m]].max().max()
+    max_y = 1.1*df_aux[[m for m in df_aux.columns if 'Concentración' in m]].max().max()
+    fig = px.scatter(df_aux,
+                     x=x,
+                     y=y,
+                     animation_frame="día",
+                     animation_group="region",
+                     size="número de habitantes",
+                     color="region",
+                     hover_name="region",
+                     range_x=[0,max_x],
+                     range_y=[0,max_y])
+        
+    fig.update_layout(height=500, width=width_figuras,template=TEMPLATE,
+                     annotations=[dict(x=1,
+                                       y=-0.55,
+                                       showarrow=False,
+                                       text="31 de Agosto",
+                                       xref="paper",
+                                       yref="paper"),
+                                  dict(x=0.1,
+                                       y=-0.55,
+                                       showarrow=False,
+                                       text="1 de Mayo",
+                                       xref="paper",
+                                       yref="paper")])
+    set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
+    st.plotly_chart(fig)
+
 @st.cache
 def cargamos_datos_resumen_diario_animacion(resolucion):
     if resolucion=='Todas las regiones':
@@ -994,6 +1047,9 @@ def cargamos_datos_resumen_diario_animacion(resolucion):
     df.rename(columns={'personas':'número de habitantes', 
                        'concentracion_pm25': 'Concentración',
                         'emision_pm25':'Emisión'}, inplace=True)
+    df.to_csv(f'./data/VG_datos_animacion_{var_cruce}.cvs', index=False)
+    df = pd.read_csv(f'./data/VG_datos_animacion_{var_cruce}.cvs')
+    df['date'] = df['date'].apply(pd.to_datetime)
     return df
 
 # LOGOS
@@ -1008,16 +1064,32 @@ def plot_logo_cr2():
         unsafe_allow_html=True,
     )
     
+    
 def plot_logo_spike():
-     st.sidebar.markdown(
+    st.sidebar.markdown('**Implementado por**')
+    st.sidebar.markdown(
         "<br>"
         '<div style="text-align: center;">'
-        '<a href="http://spikelab.xyz"> '
+        '<a href="http://www.cr2.cl/"> '
         '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/logo-grey-transparent.png" width=150>'
         " </img>"
         "</a> </div>",
         unsafe_allow_html=True,
     )
+    
+    
+
+    
+# def plot_logo_spike():
+#      st.sidebar.markdown(
+#         "<br>"
+#         '<div style="text-align: center;">'
+#         '<a href="http://spikelab.xyz"> '
+#         '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/logo-grey-transparent.png" width=150>'
+#         " </img>"
+#         "</a> </div>",
+#         unsafe_allow_html=True,
+#     )
 
 
 # TEXTO
