@@ -115,10 +115,10 @@ def series_de_tiempo(width_figuras = 1000):
         st.sidebar.error('Lista vacía')
 
 
-    st.sidebar.markdown('---')
-    st.sidebar.subheader('Ajustes visuales gráficos')
-    leyenda_h = st.sidebar.checkbox('Leyenda horizontal', value=True)
-    leyenda_arriba = st.sidebar.checkbox('Leyenda arriba', value=False)
+    #st.sidebar.markdown('---')
+    st.sidebar.subheader('Ajustes gráficos')
+    leyenda_h = True
+    leyenda_arriba = False
     leyenda_sombreada = st.sidebar.checkbox('Incluimos dispersión sombreada', value=True)
     #st.markdown('---')
     #width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
