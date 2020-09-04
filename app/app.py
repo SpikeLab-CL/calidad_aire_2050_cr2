@@ -5,12 +5,12 @@ import streamlit as st
 import plotly.express as px
 import plotly.graph_objects as go
 import datetime
-    
+from PIL import Image    
 
 def main():
     
-    st.sidebar.markdown('''# Explorador de calidad del aire :earth_africa:''',)
-    st.sidebar.markdown('''##### Una herramienta para visualizar resultados adicionales del Informe a las Naciones "El aire que respiramos: pasado, presente y futuro. Contaminación atmosférica por MP2,5 en el centro y sur de Chile"''')
+    plot_logo_pagina()
+    texto('''Una herramienta para visualizar resultados adicionales del Informe a las Naciones "El aire que respiramos: pasado, presente y futuro. Contaminación atmosférica por MP2,5 en el centro y sur de Chile"''', 15, sidebar=True)
     
     #Menu para seleccionar qué hacemos
     titulo_opcion = st.empty()
@@ -32,7 +32,7 @@ def main():
         mapas(width_figuras=width_figuras)
         
     elif app_mode==menu[3]:
-        texto("Comparación de escenarios de emisión de MP<sub>2,5</sub>", 30)
+        texto("Comparación entre escenarios de emisión y concentración de MP<sub>2,5</sub>", 30)
         escenarios(width_figuras=width_figuras)
         
 #    width_pagina = st.sidebar.slider('seleccionamos un tamaño', 700, 1800, 1100)
@@ -48,7 +48,7 @@ def main():
     
 # 1. VISTA GENERAL
 def vista_general(width_figuras = 1000):
-    
+    texto(' ')
     texto('''La informacion que se presenta en esta plataforma corresponde a salidas de un sistema de modelacion compuesto por el modelo meteorológico WRF y el modelo químico de transporte CHIMERE. Este sistema ha sido aplicado anteriormente con éxito para caracterizar la dispersión de la contaminación en Santiago y permite conocer la evolución de la calidad del aire en lugares donde no hay estaciones de monitoreo.
 Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresponden al promedio del periodo 2015 a 2017 para los meses de mayo a agosto. Los flujos de emisión de MP<sub>2,5</sub> en tanto, corresponden a estimaciones del inventario de emisiones realizado por el CR2 para fines del informe a la nacion y está descrito en mayor detalle en el capítulo 2 del informe.''',
             nfont=15)
@@ -64,14 +64,15 @@ Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresp
     
     
     if vistas==opciones[0]:
-        variables = ['Concentración', 'Emisión', 'número de habitantes']
+        variables = ['Concentración', 'Emisión', 'Número de habitantes']
     elif vistas==opciones[1]:
-        variables = ['Concentración', 'número de habitantes', 'Emisión']
+        variables = ['Concentración', 'Número de habitantes', 'Emisión']
     elif vistas==opciones[2]:
-        variables = ['Emisión', 'número de habitantes', 'Concentración']
+        variables = ['Emisión', 'Número de habitantes', 'Concentración']
 
     df = cargamos_datos_resumen(resolucion)
-    texto("Concentracion versus emisión de MP<sub>2,5</sub>", nfont=20,)
+    
+    texto("Concentración versus emisión de MP<sub>2,5</sub>", nfont=20,)
     ploteamos_barras(df, resolucion, variables, escenario = escenario, width_figuras=width_figuras)
     
     '''  
@@ -85,7 +86,7 @@ Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresp
     
     st.markdown('---')
     st.subheader('¿Idea de animación?')
-    df_diario = cargamos_datos_resumen_diario(resolucion)
+    df_diario = cargamos_datos_resumen_diario_animacion(resolucion)
     df_aux = df_diario.copy()
     df_aux['day'] = df_aux['date'].apply(lambda x: x.dayofyear)
     df_aux.sort_values(by='day', inplace=True)
@@ -93,7 +94,16 @@ Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresp
     df = px.data.gapminder()
     max_x = 1.1*df_aux['emision_ref'].max()
     max_y = 1.1*df_aux['concentracion_ref'].max()
-    fig = px.scatter(df_aux, x="emision_ref", y="concentracion_ref", animation_frame="day", animation_group="region", size="número de habitantes", color="region", hover_name="region", range_x=[-1,max_x], range_y=[-3,max_y])
+    fig = px.scatter(df_aux,
+                     x="emision_ref",
+                     y="concentracion_ref",
+                     animation_frame="day",
+                     animation_group="region",
+                     size="número de habitantes",
+                     color="region",
+                     hover_name="region",
+                     range_x=[-1,max_x],
+                     range_y=[-3,max_y])
         
     fig.update_layout(height=500, width=width_figuras,template=TEMPLATE)
     set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
@@ -279,44 +289,50 @@ def mapas(width_figuras = 1000):
 # 4. Escenarios
 
 def escenarios(width_figuras = 1000):
-    texto('A continuación presentamos una comparación para los campos de concentración de MP<sub>2,5</sub> de los 3 escenarios Comb (=Regional), Reb (=Regional+Efecto Rebote) y Comuna (=Comunal)')
+    texto('Las figuras en esta sección correponden a los resultados de las simulaciones realizadas usando las emisiones de diferentes escenarios que consideran distintas evoluciones de medidas de mitigación desde el presente hasta el año 2050. Los escenarios de proyeccion de emisiones considerados son Comunal, Regional y Regional más efecto rebote. Cada una de las simulaciones se realizaron con la misma meteorología (mayo a agosto de los años 2015 a 2017). La comparación entre los escenarios con el caso presente permite examinar el impacto de las medidas de mitigación incluídas en cada escenario, si se implementaran hoy. Así, los resultados permiten evaluar la eficiencia de estas medidas y su efecto en mejorar la calidad del aire.')
     
     st.sidebar.subheader('Dominio de interés')
     resolucion = get_resolucion(key='escenarios')
     df_ciclo_escenarios = cargamos_serie_escenario_ciclo_diario(resolucion=resolucion)
+    df_ciclo_escenarios, _ = filtrar_escenario_por_resolucion(df_ciclo_escenarios, resolucion)
     options = filtrar_espacial(df_ciclo_escenarios,resolucion)
+    df_barras_escenarios = cargamos_datos_comparacion_escenarios(resolucion)
+    
+    
+    
     if options==[]:
         st.sidebar.error('Lista vacía')
     else:
         df_ciclo_escenarios_filtrado = filtrar_options(df_ciclo_escenarios, options, resolucion)
+        df_barras_escenarios = filtrar_options(df_barras_escenarios, options, resolucion)
     st.sidebar.markdown('---')
     #width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
     
     
-    df_barras_escenarios = cargamos_datos_comparacion_escenarios(resolucion)
-    texto(''' Comparación en la concentración de los diferentes escenarios''', 25)
+    
+    
+    texto('''Concentración promedio de MP2,5 asociado a cada escenario''', 25)
     plot_barras_escenarios(df_barras_escenarios, 
                            tipo='concentracion',
                            resolucion=resolucion,
                            width_figuras=width_figuras)
-    texto('caption', 14)
     
     
     texto(' ')
     texto(' ')
-    texto(''' Comparación en la emisión de los diferentes escenarios''', 25)
+    texto('''Emisiones de MP2,5 asociadas a cada escenario''', 25)
     plot_barras_escenarios(df_barras_escenarios, 
                            tipo='emision',
                            resolucion=resolucion,
                            width_figuras=width_figuras)
-    texto('caption', 14)
 
     
+    st.markdown('---')
     texto(' ')
+    texto('Ciclo diario por escenario para:', 25)
     texto(' ')
-    texto('Ciclo diario por escenario', 25)
-    generamos_concentracion = st.checkbox('¿Generamos figuras de concentración?', value=False)
-    generamos_emision = st.checkbox('¿Generamos figuras de emisión?', value=True)
+    generamos_concentracion = st.checkbox('Concentración', value=False)
+    generamos_emision = st.checkbox('Emisión', value=False)
     figuras_concentracion = plot_ciclo_diario_escenarios(df_ciclo_escenarios_filtrado,
                                            resolucion,
                                            tipo = 'concentracion',
@@ -326,6 +342,7 @@ def escenarios(width_figuras = 1000):
                                            resolucion,
                                            tipo = 'emision',
                                            width_figuras=width_figuras)
+    
 
     
     espacio_figuras = {}
@@ -337,6 +354,9 @@ def escenarios(width_figuras = 1000):
     if generamos_concentracion:
         for fig in figuras_concentracion.keys():
             espacio_figuras[fig].plotly_chart(figuras_concentracion[fig])
+        caption = '''Evolución diaria promedio de las emisiones acumulada de MP<sub>2,5</sub> por región/comuna. La línea continua indica el valor promedio para cada hora del día.''' 
+        texto(caption, 14, line_height=1, color='grey')
+
     else:
         for fig in figuras_concentracion.keys():
             espacio_figuras[fig].empty()
@@ -345,6 +365,9 @@ def escenarios(width_figuras = 1000):
     if generamos_emision:
         for fig in figuras_emision.keys():
             espacio_figuras[fig].plotly_chart(figuras_emision[fig])
+        caption = '''Evolución diaria promedio de la concentración promedio de MP<sub>2,5</sub> por región/comuna. La línea continua indica el valor promedio para cada hora del día.''' 
+        texto(caption, 14, line_height=1, color='grey')
+
     else:
         for fig in figuras_emision.keys():
             espacio_figuras[fig].empty()

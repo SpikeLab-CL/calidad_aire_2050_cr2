@@ -42,6 +42,7 @@ def get_escenario():
     return escenario, escenario_escogido
 
 
+
 def plot_ciclo_diario_escenarios(df : pd.DataFrame, 
                                  resolucion : str, 
                                  tipo : str = 'concentracion', 
@@ -51,8 +52,11 @@ def plot_ciclo_diario_escenarios(df : pd.DataFrame,
     _df, col_a_mirar = filtrar_escenario_por_resolucion(df, resolucion)
     _df = simplificar_nombre_region(_df)
 
-    #print(_df.sort_values(by='hora'))
-
+    if tipo == 'concentracion':
+        yaxis_title = 'Concentración promedio [μg/m³]'
+    else:
+         yaxis_title = 'Emisión acumulada [ton/día]'
+        
     df_aux = _df.melt(id_vars=['hora', col_a_mirar], value_vars=[f'{tipo}_ref', f'{tipo}_comuna', f'{tipo}_comb', f'{tipo}_rebote'])
     df_aux.rename(columns={'variable':'Escenario'}, inplace=True)
     replace = {f'{tipo}_ref':'Presente', f'{tipo}_comuna':'E. Comunal', f'{tipo}_comb':'E. Regional', f'{tipo}_rebote':'E. Regional (+ efecto rebote)'}
@@ -67,7 +71,7 @@ def plot_ciclo_diario_escenarios(df : pd.DataFrame,
                       line_group="Escenario", hover_name="Escenario", title=f'Ciclo diario de {tipo} en {region_a_mirar}')
 
         fig[key].update_layout(height=400, width=width_figuras, template=TEMPLATE,
-                          yaxis_title='Concentración promedio [μg/m³]',
+                          yaxis_title=yaxis_title,
                           xaxis_title='',
                           xaxis = dict(tickmode = 'array',
                                        tickvals = [0, 4, 8, 12, 16, 20],
@@ -115,6 +119,8 @@ def cargamos_serie_escenario_ciclo_diario(resolucion='Todas las regiones'):
     FROM base_concentracion as con
     JOIN base_emision as emi
     ON con.Time = emi.Time AND con.{var_cruce} = emi.{var_cruce}
+    WHERE con.region!="Región de Coquimbo" AND con.region!="Región de Magallanes y Antártica Chilena" 
+
     )
     SELECT EXTRACT(HOUR from Time) as hora, {var_espacio},
     AVG(conc_ref) as concentracion_ref, AVG(conc_comuna) as concentracion_comuna, AVG(conc_comb) as concentracion_comb , AVG(conc_rebote) as concentracion_rebote,
@@ -124,9 +130,12 @@ def cargamos_serie_escenario_ciclo_diario(resolucion='Todas las regiones'):
     ORDER BY hora ASC, {var_espacio}
     '''
     
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.to_csv(f'./data/CE_datos_comparar_escenarios_ciclo_diario_{var_cruce}.csv', index=False)
+    df = pd.read_csv(f'./data/CE_datos_comparar_escenarios_ciclo_diario_{var_cruce}.csv') 
+
     return df
 
 
@@ -138,15 +147,20 @@ def plot_barras_escenarios(df : pd.DataFrame,
     
     _df, col_a_mirar = filtrar_escenario_por_resolucion(df, resolucion)
     _df = simplificar_nombre_region(_df)
+    _df.sort_values(by=f'{tipo}_ref', inplace=True, ascending=False)
     if tipo == 'concentracion':
         yaxis_title = 'Concentración promedio [μg/m³]'
+        descripcion = '''Gráfico de barras que ilustra la concentración promedio diaria de MP<sub>2,5</sub> [μg/m<sup>3</sup>] por región/comuna de los meses de invierno (mayo-agosto) del período 2015 a 2017 simulados por el sistema de modelación WRF-CHIMERE para emisiones Presente y cada una de las trayectorias de emisiones (Comunal, Regional más efecto rebote y Regional)'''
+        
     else:
         yaxis_title = 'Emisión promedio [ton/día]'
+        descripcion = '''Gráfico de barras que ilustra la emisión promedio diaria de MP<sub>2,5</sub> [ton/día] por región/comuna para el caso Presente y las emisiones proyectadas para el año 2050 para cada uno de las trayectorias de emisiones (Comunal, Regional más efecto rebote y Regional)
+'''
         
     x = _df[col_a_mirar]
     fig = go.Figure()
-    escenarios = {f'{tipo}_ref':'Presente', f'{tipo}_rebote':'E. Regional (+ efecto rebote)', f'{tipo}_comuna':'E. Comunal',f'{tipo}_comb':'E. Regional'}
-    nombre_colores = ['#AB63FA', '#00CC96', '#EF553B', '#636EFA']
+    escenarios = {f'{tipo}_ref':'Presente', f'{tipo}_comuna':'E. Comunal', f'{tipo}_rebote':'E. Regional (+ efecto rebote)', f'{tipo}_comb':'E. Regional'}
+    nombre_colores = ['#AB63FA', '#636EFA', '#00CC96', '#EF553B']
 
     for escenario, color in zip(list(escenarios.keys()), nombre_colores):
         fig.add_trace(go.Bar(
@@ -164,6 +178,7 @@ def plot_barras_escenarios(df : pd.DataFrame,
     fig.update_layout(height=500, width=width_figuras,)
  
     st.plotly_chart(fig)
+    texto(descripcion, 14, line_height=1, color='grey')
 
 
 def filtrar_escenario_por_resolucion(df, resolucion):
@@ -205,6 +220,7 @@ def cargamos_datos_comparacion_escenarios(resolucion):
         FROM base_diaria_concentracion as con
         JOIN base_diaria_emision as emi
         ON con.date = emi.date AND con.{var_cruce} = emi.{var_cruce}
+        WHERE con.region!="Región de Coquimbo" AND con.region!="Región de Magallanes y Antártica Chilena" 
         ),
         base_final as(
         SELECT {var_espacio},
@@ -215,12 +231,22 @@ def cargamos_datos_comparacion_escenarios(resolucion):
         )
         SELECT * FROM base_final '''
 
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.to_csv(f'./data/CE_datos_comparar_escenarios_{var_cruce}.csv', index=False)
+    df = pd.read_csv(f'./data/CE_datos_comparar_escenarios_{var_cruce}.csv') 
+    
     return df
 
-
+# def filtrar_ciclo_escenario_por_resolucion(df, resolucion, temporal = 'hora'):
+#     if resolucion == 'Todas las regiones':
+#         _df = df.copy()
+#     else:
+#         _df = df.query('region==@resolucion')
+        
+#     _df = simplificar_nombre_region(_df)
+#     return _df
 
 def filtrar_espacial(df, resolucion):
     col_a_mirar = columna_a_mirar(resolucion)
@@ -261,7 +287,8 @@ def cargamos_raster(resolucion :str = 'region',
         FROM CR2.concentracion_escenarios_w_geo as con
         JOIN CR2.emision_escenarios_w_geo as emi
             ON con.lat=emi.lat AND con.lon=emi.lon AND con.Time=emi.Time
-        WHERE con.Time>='{date_inicio}' AND con.Time<'{date_fin}'
+        WHERE con.Time>='{date_inicio}' AND con.Time<'{date_fin}' 
+        AND con.region!="Región de Coquimbo" AND con.region!="Región de Magallanes y Antártica Chilena" 
     )
     SELECT lat, lon, {var_cruce}, 
     AVG(conc_ref) as concentracion_ref, AVG(conc_comb) as concentracion_comb, AVG(conc_comuna) as concentracion_comuna, AVG(conc_rebote) as concentracion_rebote, 
@@ -270,9 +297,12 @@ def cargamos_raster(resolucion :str = 'region',
     GROUP BY lat, lon, {var_cruce}
 '''
     
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.to_csv(f'./data/MP_mapa_agregacion_{var_cruce}_from_{date_inicio}_to_{date_fin}.csv', index=False)
+    df = pd.read_csv(f'./data/MP_mapa_agregacion_{var_cruce}_from_{date_inicio}_to_{date_fin}.csv')
+
     return df
 
 
@@ -368,7 +398,7 @@ def cargamos_serie_semanal(resolucion = 'Todas las regiones'):
         FROM base_comunal_concentracion as con
         JOIN base_comunal_emision as emi
             ON con.{var_cruce}=emi.{var_cruce} AND con.date=emi.date
-        WHERE con.region!="Región de Magallanes y Antártica Chilena"
+        WHERE con.region!="Región de Magallanes y Antártica Chilena" AND con.region!="Región de Coquimbo"
     )
     SELECT EXTRACT(DAYOFWEEK from date) as day, {var_espacio},
     AVG(emision_ref) as avg_emision_ref, STDDEV(emision_ref) as stddev_emision_ref,
@@ -384,9 +414,12 @@ def cargamos_serie_semanal(resolucion = 'Todas las regiones'):
     ORDER BY {var_espacio}
     '''
     #
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.to_csv(f'./data/ST_series_ciclo_semanal_{var_cruce}.csv', index=False)
+    df = pd.read_csv(f'./data/ST_series_ciclo_semanal_{var_cruce}.csv')
+
     return df
 
 
@@ -488,7 +521,7 @@ def cargamos_serie_24hrs(resolucion='Todas las regiones'):
         FROM base_comunal_concentracion as con
         JOIN base_comunal_emision as emi
             ON con.{var_cruce}=emi.{var_cruce} AND con.Time=emi.Time
-        WHERE con.region!="Región de Magallanes y Antártica Chilena"
+        WHERE con.region!="Región de Magallanes y Antártica Chilena" AND con.region!="Región de Coquimbo"
     )
     SELECT EXTRACT(HOUR from Time) as hora, {var_espacio},
     AVG(emision_ref) as avg_emision_ref, STDDEV(emision_ref) as stddev_emision_ref,
@@ -504,9 +537,11 @@ def cargamos_serie_24hrs(resolucion='Todas las regiones'):
     ORDER BY hora ASC, {var_espacio}
     '''
     
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.to_csv(f'./data/ST_series_ciclo_diario_{var_cruce}.csv', index=False)
+    df = pd.read_csv(f'./data/ST_series_ciclo_diario_{var_cruce}.csv')
     return df
 
 def filtrar_serie_daily_por_resolucion(df, resolucion, temporal = 'hora'):
@@ -634,12 +669,14 @@ def cargamos_series_tiempo_completas(hourly=False, resolucion='Todas las regione
             JOIN
             base_emision as emi
                 ON con.{var_cruce}=emi.{var_cruce} AND con.date=emi.date
-            WHERE con.region!="Región de Magallanes y Antártica Chilena"
+            WHERE con.region!="Región de Magallanes y Antártica Chilena" AND con.region!="Región de Coquimbo"
             '''
 
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.to_csv(f'./data/ST_series_completas_{var_cruce}.csv', index=False)
+    df = pd.read_csv(f'./data/ST_series_completas_{var_cruce}.csv')
     return df
 
 
@@ -696,7 +733,7 @@ def set_leyenda(fig, leyenda_h, leyenda_arriba):
     
 def get_resolucion(key='resolucion'):    
     lista_regiones = ['Todas las regiones',
-                      'Región de Coquimbo',
+                      #'Región de Coquimbo',
                       'Región de Valparaíso',
                       'Región Metropolitana de Santiago',
                       "Región del Libertador Bernardo O'Higgins",
@@ -716,32 +753,45 @@ def get_resolucion(key='resolucion'):
 
 
 # 1. VISTA GENERAL
-def plot_dispersion(df, resolucion, variables=['Concentración','Emisión', 'número de habitantes'], escenario = 'ref', width_figuras=1000, log_scale=True):
+def plot_dispersion(df : pd.DataFrame,
+                    resolucion : str = 'Todas las regiones',
+                    variables : list = ['Concentración','Emisión', 'Número de habitantes'],
+                    escenario : str = 'ref',
+                    width_figuras : int = 1000,
+                    log_scale : bool = False):
     
     _df = df.copy()
+    x = variables[1]
+    y = variables[0]
+    variables_rango = {'Concentración' : 'concentracion','Emisión' : 'emision', 'Número de habitantes':'Número de habitantes'}
+    
     _df['Concentración'] = _df[f'concentracion_{escenario}']
     _df['Emisión'] = _df[f'emision_{escenario}']
     _df, col_a_mirar = filtrar_por_resolucion(_df, resolucion)
-    _df['logaritmo número de habitantes'] = np.round(np.log(_df['número de habitantes']),2)
+    max_x = 1.1*_df[[m for m in _df.columns if variables_rango[x] in m]].max().max()
+    max_y = 1.1*_df[[m for m in _df.columns if variables_rango[y] in m]].max().max()
+    _df['Logaritmo número de habitantes'] = np.round(np.log(_df['Número de habitantes']),2)
     _df['Emisión'] = np.round(_df['Emisión'],2)
     _df['Concentración'] = np.round(_df['Concentración'],2)
-    if variables[2]=='número de habitantes':
-        color = 'logaritmo número de habitantes'
+    if variables[2]=='Número de habitantes':
+        color = 'Logaritmo número de habitantes'
     else:
         color = variables[2]
-    
-    x = variables[1]
-    y = variables[0]
+    _df['size'] = 8
+   
     hover_data = {k:':.2f' for k in variables}
     axis_labels = {'Concentración':'Concentración [μg/m³]',
                    'Emisión':'Emisión [ton/día]',
-                   'número de habitantes':'Número de habitantes'}
+                   'Número de habitantes':'Número de habitantes'}
     
+
     fig = px.scatter(_df, x=x, y=y,
                      color=color, 
-                     size=variables[2],
+                     size='size',
                      #hover_data=hover_data,
-                     hover_name=col_a_mirar,)
+                     hover_name=col_a_mirar,
+                     range_x=[0,max_x],
+                     range_y=[0,max_y])
     
     
     fig.update_layout(height=500, width=width_figuras,
@@ -751,9 +801,9 @@ def plot_dispersion(df, resolucion, variables=['Concentración','Emisión', 'nú
     set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
     st.plotly_chart(fig)
     descripcion = {'Concentración':'la concentración promedio diaria [μg/m<sup>3</sup>]',
-                   'Emisión': 'la emisión acumulada diaria [ton/día]',
-                   'número de habitantes':'el número de habitantes'}
-    texto(f'''Gráfico de dispersión que ilustra {descripcion[y]} y {descripcion[x]} por región/comuna. El tamaño y color de cada circulo ilustran {descripcion[variables[2]]} por región/comuna. Tanto la emisión como la concentración representan la condición promedio invernal (mayo-agosto) del periodo 2015 a 2017 simulados por el sistema de modelacion WRF-CHIMERE.''', 14, line_height=1, color='grey')
+                   'Emisión': 'la emisión acumulada diaria promedio [ton/día]',
+                   'Número de habitantes':'el número de habitantes'}
+    texto(f'''Gráfico de dispersión que ilustra {descripcion[y]} y {descripcion[x]} por región/comuna. El tamaño y color de cada círculo ilustran {descripcion[variables[2]]} por región/comuna. Tanto la emisión como la concentración representan la condición promedio invernal (mayo-agosto) del período 2015 a 2017 simulados por el sistema de modelación WRF-CHIMERE.''', 14, line_height=1, color='grey')
 
 
 
@@ -794,7 +844,7 @@ def ploteamos_barras(df, resolucion, variables=['Concentración','Emisión'], wi
     fig.update_layout(template=TEMPLATE)
     fig.update_layout(height=500, width=width_figuras,)
     st.plotly_chart(fig)
-    texto('''Gráfico de barras que ilustra la emisión acumulada diaria [ton/día] y la concentración promedio diaria [μg/m<sup>3</sup>] por región/comuna. Ambos parámetros representan la condición promedio invernal (mayo-agosto) del período 2015 a 2017 simulados por el sistema de modelación WRF-CHIMERE.''',14, line_height=1, color='grey')
+    texto('''Gráfico de barras que ilustra la emisión acumulada diaria promedio [ton/día] y la concentración promedio diaria [μg/m<sup>3</sup>] por región/comuna. Ambos parámetros representan la condición promedio invernal (mayo-agosto) del período 2015 a 2017 simulados por el sistema de modelación WRF-CHIMERE.''',14, line_height=1, color='grey')
     
 
     
@@ -805,7 +855,7 @@ def simplificar_nombre_region(df):
                       "Región del Libertador Bernardo O'Higgins": "Lib B O'Higgins" ,
                       'Región del Maule': 'Maule', 
                       'Región de Ñuble': 'Ñuble' ,
-                      'Región del Bío-Bío': 'Bío-Bío' ,
+                      'Región del Bío-Bío': 'Biobío' ,
                       'Región de La Araucanía': 'La Araucanía' ,
                       'Región de Los Ríos': 'Los Ríos' ,
                       'Región de Los Lagos': 'Los Lagos', 
@@ -858,7 +908,7 @@ def cargamos_datos_resumen(resolucion):
             FROM base_concentracion as con
             JOIN base_emision as emi
                 ON con.{var_cruce}=emi.{var_cruce} AND con.date=emi.date
-            WHERE con.region!="Región de Magallanes y Antártica Chilena"
+            WHERE con.region!="Región de Magallanes y Antártica Chilena" AND con.region!="Región de Coquimbo"
         ),
         base_agregada as(
         SELECT {var_espacio}, AVG(concentracion_ref) as concentracion_ref, AVG(concentracion_comb) as concentracion_comb, AVG(concentracion_comuna) as concentracion_comuna, AVG(concentracion_rebote) as concentracion_rebote, 
@@ -879,16 +929,19 @@ def cargamos_datos_resumen(resolucion):
         )
         SELECT * FROM base_final'''
 
-    df = pandas_gbq.read_gbq(query,
-                             project_id='spike-sandbox',
-                             use_bqstorage_api=True)
-    df.rename(columns={'personas':'número de habitantes', 
-                       'concentracion_pm25': 'Concentración',
-                        'emision_pm25':'Emisión'}, inplace=True)
+#     df = pandas_gbq.read_gbq(query,
+#                              project_id='spike-sandbox',
+#                              use_bqstorage_api=True)
+#     df.rename(columns={'personas':'Número de habitantes', 
+#                        'concentracion_pm25': 'Concentración',
+#                         'emision_pm25':'Emisión'}, inplace=True)
+#     df.to_csv(f'./data/VG_datos_resumen_{var_cruce}.csv', index=False)
+    
+    df = pd.read_csv(f'./data/VG_datos_resumen_{var_cruce}.csv')
     return df
 
 @st.cache
-def cargamos_datos_resumen_diario(resolucion):
+def cargamos_datos_resumen_diario_animacion(resolucion):
     if resolucion=='Todas las regiones':
         var_espacio = 'region'
         var_cruce = 'region'
@@ -914,7 +967,7 @@ def cargamos_datos_resumen_diario(resolucion):
             FROM base_concentracion as con
             JOIN base_emision as emi
                 ON con.{var_cruce}=emi.{var_cruce} AND con.date=emi.date
-            WHERE con.region!="Región de Magallanes y Antártica Chilena"
+            WHERE con.region!="Región de Magallanes y Antártica Chilena" AND con.region!="Región de Coquimbo"
         ),
         base_agregada as(
         SELECT date, {var_espacio}, AVG(concentracion_ref) as concentracion_ref, AVG(concentracion_comb) as concentracion_comb, AVG(concentracion_comuna) as concentracion_comuna, AVG(concentracion_rebote) as concentracion_rebote, 
@@ -949,7 +1002,7 @@ def plot_logo_cr2():
         "<br>"
         '<div style="text-align: center;">'
         '<a href="http://www.cr2.cl/"> '
-        '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/cr2_vismet.png" width=100>'
+        '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/logo_CR2_plataforma.png" width=240>'
         " </img>"
         "</a> </div>",
         unsafe_allow_html=True,
@@ -960,7 +1013,7 @@ def plot_logo_spike():
         "<br>"
         '<div style="text-align: center;">'
         '<a href="http://spikelab.xyz"> '
-        '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/logo-grey-transparent.png" width=128>'
+        '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/logo-grey-transparent.png" width=150>'
         " </img>"
         "</a> </div>",
         unsafe_allow_html=True,
@@ -968,16 +1021,32 @@ def plot_logo_spike():
 
 
 # TEXTO
-def texto(texto = 'holi', nfont = 16, color = 'black', line_height=None):
-    st.markdown(
-            body=generate_html(
-                text=texto,
-                color=color,
-                font_size=f"{nfont}px",
-                line_height=line_height
-            ),
-            unsafe_allow_html=True,
-            )
+def texto(texto : str = 'holi',
+          nfont : int = 16,
+          color : str = 'black',
+          line_height : float =None,
+          sidebar: bool = False):
+    
+    if sidebar:
+        st.sidebar.markdown(
+                body=generate_html(
+                    text=texto,
+                    color=color,
+                    font_size=f"{nfont}px",
+                    line_height=line_height
+                ),
+                unsafe_allow_html=True,
+                )
+    else:
+        st.markdown(
+        body=generate_html(
+            text=texto,
+            color=color,
+            font_size=f"{nfont}px",
+            line_height=line_height
+        ),
+        unsafe_allow_html=True,
+        )
     
 
 def generate_html(
@@ -1013,7 +1082,17 @@ def max_width_(width=1000):
     """,
         unsafe_allow_html=True,
     )
-    
+def plot_logo_pagina():
+    st.sidebar.markdown(
+        "<br>"
+        '<div style="text-align: center;">'
+        '<a href="http://www.cr2.cl/"> '
+        '<img src="https://raw.githubusercontent.com/SpikeLab-CL/calidad_aire_2050_cr2/master/logo/logo_plataforma.png" width=300>'
+        " </img>"
+        "</a> </div>",
+        unsafe_allow_html=True,
+    )
+
     
     
 # def load_diccionario_regiones():
