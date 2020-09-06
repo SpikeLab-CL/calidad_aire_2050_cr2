@@ -720,7 +720,13 @@ def line_plot(_df, y='concentracion', escenario = 'ref',
                       xaxis_title="", 
                       yaxis_title=ylabel,
                       template=TEMPLATE,
-                     legend_title_text=' ')
+                     legend_title_text=' ',
+                     annotations=[dict(x=0.035,
+                                      y=-0.095,
+                                      showarrow=False,
+                                      text="-2017",
+                                      xref="paper",
+                                      yref="paper")],)
     
     set_leyenda(fig, leyenda_h, leyenda_arriba)
     st.plotly_chart(fig)
