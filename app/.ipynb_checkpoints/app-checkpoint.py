@@ -124,7 +124,7 @@ def series_de_tiempo(width_figuras = 1000):
     #st.markdown('---')
     #width_figuras = st.sidebar.slider('ancho figuras', 0, 2000, 1000)
     
-    
+
     _df_serie_completa = filtrar_options(_df_serie_completa, options, resolucion)
     st.markdown('---')
     texto(f"Concentración de MP<sub>2,5</sub> para {escenario_escogido}", nfont=20)
