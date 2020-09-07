@@ -88,7 +88,9 @@ Los datos de concentracion de MP<sub>2,5</sub> en los distintos graficos corresp
     
     st.markdown('---')
     st.subheader('Dispersión animada')
-    animacion(resolucion=resolucion, width_figuras=width_figuras)
+    bool_animacion = st.checkbox('Generar animación', False)
+    if bool_animacion:
+        animacion(resolucion=resolucion, width_figuras=width_figuras)
     
     
 

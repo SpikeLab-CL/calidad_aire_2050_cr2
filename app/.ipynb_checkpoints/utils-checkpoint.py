@@ -1004,7 +1004,7 @@ def animacion(resolucion : str = 'Todas las regiones', escenario : str = 'ref', 
                                        yref="paper")])
     set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
     st.plotly_chart(fig)
-    texto(''')Gráfico de dispersión que ilustra la concentración promedio diaria [μg/m³] y la emisión acumulada diaria promedio [ton/día] por región/comuna. El tamaño de cada círculo ilustra el número de habitantes por región/comuna. Tanto la emisión como la concentracion de cada día corresponden al pomedio de ese dia de los años 2015 al 2017. El número de habitantes de una región/comuna es informado al colocar el cursor sobre dicha región/comuna. La barra inferior permite ver la evolución de la dispersión para cada día entre el 1º de Mayo y el 31 de Agosto.''',14, line_height=1, color='grey')
+    texto('''Gráfico de dispersión que ilustra la concentración promedio diaria [μg/m³] y la emisión acumulada diaria promedio [ton/día] por región/comuna. El tamaño de cada círculo ilustra el número de habitantes por región/comuna. Tanto la emisión como la concentracion de cada día corresponden al pomedio de ese dia de los años 2015 al 2017. El número de habitantes de una región/comuna es informado al colocar el cursor sobre dicha región/comuna. La barra inferior permite ver la evolución de la dispersión para cada día entre el 1º de Mayo y el 31 de Agosto.''',14, line_height=1, color='grey')
 
 @st.cache
 def cargamos_datos_resumen_diario_animacion(resolucion):
