@@ -777,7 +777,9 @@ def plot_dispersion(df : pd.DataFrame,
     _df = df.copy()
     x = variables[1]
     y = variables[0]
-    variables_rango = {'Concentración' : 'concentracion','Emisión' : 'emision', 'Número de habitantes':'Número de habitantes'}
+    variables_rango = {'Concentración' : 'concentracion',
+                       'Emisión' : 'emision',
+                       'Número de habitantes':'Número de habitantes'}
     
     _df['Concentración'] = _df[f'concentracion_{escenario}']
     _df['Emisión'] = _df[f'emision_{escenario}']
@@ -799,6 +801,7 @@ def plot_dispersion(df : pd.DataFrame,
                    'Número de habitantes':'Número de habitantes'}
     
 
+
     fig = px.scatter(_df, x=x, y=y,
                      color=color, 
                      size=color,
@@ -806,12 +809,26 @@ def plot_dispersion(df : pd.DataFrame,
                      hover_name=col_a_mirar,
                      range_x=[0,max_x],
                      range_y=[0,max_y])
-    
+
     
     fig.update_layout(height=500, width=width_figuras,
                      xaxis_title=axis_labels[x],
                      yaxis_title=axis_labels[y],
                      template=TEMPLATE)
+    ticks_vals = [np.log(7000000),
+                  np.log(5000000),
+                  np.log(3000000),
+                  np.log(1000000),
+                  np.log(500000),
+                  np.log(100000),
+                  np.log(50000),
+                  np.log(10000)]
+    ticks_text = ['7M', '5M', '3M', '1M', '500k', '100k', '50k', '10k']
+    fig.update_layout(coloraxis_colorbar=dict(
+                      title = 'Número de habitantes',
+                      tickvals=ticks_vals,
+                      ticktext=ticks_text,
+                      ))
     set_leyenda(fig, leyenda_h=True, leyenda_arriba=True)
     st.plotly_chart(fig)
     descripcion = {'Concentración':'la concentración promedio diaria [μg/m<sup>3</sup>]',
