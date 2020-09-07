@@ -12,6 +12,15 @@ def main():
                            page_icon=':earth-americas:')
     width_pagina = 1100
     max_width_(width_pagina)
+    st.markdown('''<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-177375442-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-177375442-1');
+</script>''',  unsafe_allow_html=True,)
     
     plot_logo_pagina()
     texto('''Una herramienta para visualizar resultados adicionales del Informe a las Naciones "El aire que respiramos: pasado, presente y futuro. Contaminación atmosférica por MP2,5 en el centro y sur de Chile"''', 15, sidebar=True)

@@ -187,7 +187,7 @@ def filtrar_escenario_por_resolucion(df, resolucion):
         col_a_mirar = 'region'
         
     else:
-        _df = df.query('region==@resolucion')
+        _df = df.query('region==@resolucion').copy()
         col_a_mirar = 'comuna'
         
     col_referencia = [m for m in _df.columns if 'ref' in m]
