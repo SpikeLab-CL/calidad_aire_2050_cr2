@@ -2,6 +2,7 @@ from utils import *
 import numpy as np
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 import plotly.express as px
 import plotly.graph_objects as go
 import datetime
@@ -30,7 +31,17 @@ def main():
       gtag('js', new Date());
     
       gtag('config', 'UA-177375442-1');
-    </script>''',)
+    </script>''', height=0)
+#     components.iframe(
+#         '''<!-- Global site tag (gtag.js) - Google Analytics -->
+#     <script async src="https://www.googletagmanager.com/gtag/js?id=UA-177375442-1"></script>
+#     <script>
+#       window.dataLayer = window.dataLayer || [];
+#       function gtag(){dataLayer.push(arguments);}
+#       gtag('js', new Date());
+    
+#       gtag('config', 'UA-177375442-1');
+#     </script>''',)
     
     plot_logo_pagina()
     texto('''Una herramienta para visualizar resultados adicionales del Informe a las Naciones "El aire que respiramos: pasado, presente y futuro. Contaminación atmosférica por MP2,5 en el centro y sur de Chile"''', 15, sidebar=True)
