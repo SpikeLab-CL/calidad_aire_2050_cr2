@@ -1,5 +1,5 @@
 import pandas as pd
-import pandas_gbq
+#import pandas_gbq
 import numpy as np
 import streamlit as st
 import plotly.express as px

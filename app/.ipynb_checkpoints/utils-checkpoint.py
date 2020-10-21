@@ -1,5 +1,5 @@
 import pandas as pd
-import pandas_gbq
+#import pandas_gbq
 import numpy as np
 import streamlit as st
 import plotly.express as px
@@ -801,7 +801,6 @@ def plot_dispersion(df : pd.DataFrame,
                    'Número de habitantes':'Número de habitantes'}
     
 
-
     fig = px.scatter(_df, x=x, y=y,
                      color=color, 
                      size=color,
@@ -809,7 +808,6 @@ def plot_dispersion(df : pd.DataFrame,
                      hover_name=col_a_mirar,
                      range_x=[0,max_x],
                      range_y=[0,max_y])
-
     
     fig.update_layout(height=500, width=width_figuras,
                      xaxis_title=axis_labels[x],
